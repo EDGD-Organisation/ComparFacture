@@ -1,0 +1,93 @@
+[
+  {
+    "file": "Scan17-03-2026-131022.pdf",
+    "structured": {
+      "currency": "EUR",
+      "lines": [
+        {
+          "label": "Polenta fine 1K Vivien Paille",
+          "quantity": 30,
+          "unit": "SAC",
+          "unit_price": 15.53
+        },
+        {
+          "label": "Gouda FR envelop.24% 25g x100 Vie de Château",
+          "quantity": 6,
+          "unit": "CRT",
+          "unit_price": 26.5
+        },
+        {
+          "label": "Sauté dinde CE* VF 50/803 5k IE",
+          "quantity": 2,
+          "unit": "CRT",
+          "unit_price": 30.835
+        },
+        {
+          "label": "SH bE VBF cuit 15% 100g 5,5K Socopa",
+          "quantity": 16,
+          "unit": "CRT",
+          "unit_price": 106.39
+        },
+        {
+          "label": "Salade museau porc lyonna.2,5K La belle Henri",
+          "quantity": 8,
+          "unit": "BOT",
+          "unit_price": 12.888
+        },
+        {
+          "label": "Bouillon volail.déshy.1X (SOL) Knorr Professi",
+          "quantity": 6,
+          "unit": "BTE",
+          "unit_price": 14.687
+        },
+        {
+          "label": "Bouillon légum.gran.1,2K (60L) Knorr Professi",
+          "quantity": 6,
+          "unit": "BTE",
+          "unit_price": 16.196
+        }
+      ]
+    }
+  },
+  {
+    "file": "sysco 2.jpg",
+    "structured": {
+      "currency": "EUR",
+      "lines": [
+        {
+          "label": "CUBE OIGNON CRU 10MM ST2.5KG X4",
+          "quantity": 30,
+          "supplier_reference": "60118",
+          "unit_price": 1.489
+        },
+        {
+          "label": "CREPE NEUTRE 29CM 50G ST10PC X5",
+          "quantity": 100,
+          "supplier_reference": "7235",
+          "unit_price": null
+        },
+        {
+          "label": "PUREE COURGETTE BOND. CE2 ST2.5KG X4",
+          "quantity": 30,
+          "supplier_reference": "7852",
+          "unit_price": 2.178
+        },
+        {
+          "label": "FEUILLETE ABRICOTS 90G SYE X50",
+          "quantity": 10,
+          "supplier_reference": "77570",
+          "unit_price": 32.62
+        },
+        {
+          "label": "OEUF DUR ECALE SOL PT INF.53G SE75PC",
+          "quantity": 150,
+          "supplier_reference": "81430",
+          "unit_price": 0.275
+        }
+      ],
+      "invoice_date": "25.08.2025",
+      "invoice_number": "RAA330",
+      "supplier_name": "SYSCO France"
+    }
+  }
+]

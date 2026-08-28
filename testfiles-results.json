@@ -1,0 +1,376 @@
+[
+  {
+    "file": "testfiles/Facture Marion.jpg",
+    "mime": "image/jpg",
+    "pageCount": 1,
+    "ocrDurationSeconds": 7.3,
+    "text": "à EPISAVEURS CENTRE BIO: Certlis FR-BIO-10 <\n20/22 Rup de fa Liocdière MSC: Certifié MSC-C-51718 Er)\nù ZAC dela Lodièro n°2 Num Opérateur: 50032710 -_ EEA\n= = Ee. =\nEpiSaveurs mt oe G71\nte Fax: 0247777110\nBORDEREAU DE LIVRAISON N° 7826275751 du 28.05.2026\nLivré EXEMPLAIRE CLIENT\n103590 Code fournisseur: 3010614377983\nREST SCO FLORA TRISTAN\nBOULEVARD EMILE PLET ; Facturé 106578\n72230 MULSANNE\nTél: 02 43 42 99 84\nMAIRIE DE MULSANNE\n4 RUE EMILE ARROUET\n10 token TUE 72230 MULSANNE\n1d TVA facturé Devise\nFRET21720214 Euro\nPaur les produits sourrés au Règ. UE 2023-2429 indication d'rigine. réfévez-vous à l'ééquette =\nPoules pui rés 0 UE pra on Ce re TT AAA\nToumée : 42493DJEF\n-—\nLigne - Article - Désignation Qté livrée Qté fact. UF PU TVA MTHT\nSereporterau dospourlescods o_o —— — —\nAUTRES\nCommande n° PROMO du 28/05/2026\n31/ 18083 Gateau fourre choc x2 (40Gx110) Prince 2,000 COL 2000 COL 45000 E HS oc 2000\n10/ 313238 Spec pom-poire-vani ssa grde(90Gx48)PomP 4,000 COL 4000 COL 27,00 7/65 EY, 108,00\næ/ 43755 Genolse fourre frse miniroule(25Gx180)Lu 2,000 COL 2000 COL 53,000 El 00500\n20/ 202340 Spec pom s-suc aj grde (90Gx48) PomP 4,000 COL 4,000 COL 26,000 E 1 2 104,00\n30/ 313345 Spec pom-mang-orang ssa grde(s0Gx48)PomP 4,000 COL 4,000 COL 29,000 E1 3 116,00\n: Total commande n° PROMO du 28/05/2026 524,00\nLU ie aures 0\nTotal 16 Colis 69,640 Kg N° commande(s) Pomona 3126287163 - 3126963600\nRemarques i” Emargement client\n—— es weyers so 80 ur |\n— (er ame ae\nmu dre 52400 1 680 BB ttes Bias\nPaletis es —— ; BAN LC\nPr Joi DOS Bia 5 5\nFab 1 EYE 524,00 28,82 i CALYFREPO\nAutres —\nTru pri ot i lt DE Uji, Nn ribs OO Sr are ue Me 1 . By el\nEncre ét pbs ee an cu SE pe\nHolra société ne consent pas descomple. LL déapcines ; #40 ER",
+    "structureDurationSeconds": 2.1,
+    "structured": {
+      "currency": "Euro",
+      "lines": [
+        {
+          "label": "Gateau fourre choc x2 (40Gx110) Prince",
+          "quantity": 2,
+          "discount_percent": null,
+          "line_total": 90,
+          "supplier_reference": "18083",
+          "unit": "COL",
+          "unit_price": 45
+        },
+        {
+          "label": "Spec pom-poire-vani ssa grde(90Gx48)PomP",
+          "quantity": 4,
+          "discount_percent": null,
+          "line_total": 108,
+          "supplier_reference": "313238",
+          "unit": "COL",
+          "unit_price": 27
+        },
+        {
+          "label": "Genolse fourre frse miniroule(25Gx180)Lu",
+          "quantity": 2,
+          "discount_percent": null,
+          "line_total": 106,
+          "supplier_reference": "43755",
+          "unit": "COL",
+          "unit_price": 53
+        },
+        {
+          "label": "Spec pom s-suc aj grde (90Gx48) PomP",
+          "quantity": 4,
+          "discount_percent": null,
+          "line_total": 104,
+          "supplier_reference": "202340",
+          "unit": "COL",
+          "unit_price": 26
+        },
+        {
+          "label": "Spec pom-mang-orang ssa grde(s0Gx48)PomP",
+          "quantity": 4,
+          "discount_percent": null,
+          "line_total": 116,
+          "supplier_reference": "313345",
+          "unit": "COL",
+          "unit_price": 29
+        }
+      ],
+      "invoice_date": "28.05.2026",
+      "invoice_number": "7826275751",
+      "supplier_name": "EPISAVEURS",
+      "total_ht": 524,
+      "total_ttc": 552.82
+    }
+  },
+  {
+    "file": "testfiles/Facture Marion 3.jpg",
+    "mime": "image/jpg",
+    "pageCount": 1,
+    "ocrDurationSeconds": 6.5,
+    "text": "Seer lassie SIRET 646 850 231 00046 - APE 4639A\nTélécopie: administratif: 0251696960 Crédit Mutuel La Châtaigneraie\ncommandes 0251527964 RIB n° 15519 38059 00020010801 11\nJ) IBAN FR76 1551 8360 5800 0200 1080 111\nSOCÉTÉ INDUSTRIELLE RAISON FRÈRES BIC CMCIFR2ACMO\nSIRF AE rates N° Intracommunautairo : FR 84 546 850 231\n90, rue des Pépinières - 85120 ANTIGNY\nDépôt agréé - FR 85 005 001 CE\n5 BON DE :IVRAISON\n—\nAdresse livralson : Adresse facturation :\nECOLE PRIMAIRE FLORA TRISTAN MAIRIE MULSANNE\nBOULEVARD EMILE PLET PLACE JEAN MOULIN\n72230 MULSANHNE 72230 MULSANNE\nVENDEUR UVRAISON\nes desozs en igi | lone 22/05/26 || 259 999215|901/m02k 32\nCODE DESIGHATION REE 4 MONTANTHT =\n# CDE: 85455345 dull. 05/2026 + ci 7\n09CS |EPIN. PALET BRANCHE, EQUI 2, 5K B Ke 35. cod Flo 2.00 70.00 1\n41CS |BEIGNET CHOCO/HOISETTE 756X48Q EH 5) Pa} 2G. 00 60,09 1\n20CS |OIGNON CURE 7 © KG Ke 20. cod ©3292 148 =e.8d 1\n38CS |ECHALOTF COUPE): ! WG KG 2. 000 3160, 4 70 9 4d 1\n37CS [AIL COUPE L RE 1MP ne 1.000 AD (8 5. 80 5. @d :\nSICS |PERSIL COUPE 1 49 Ke 1. 00 2.9 4.14 7102\n52CS [CHOU CREME PAR. VANIL 400Xe27Q eT 13 filé 10.50 | 135 592\n52CS |BRUNOISE LEGUMES R. SKE UE Q Ke 5 00 do i AS 2241\nSous total CDE. | 323. 89\n#% ETAT DU GOUE-VIDE #4 PALETTES LAISSEHS *+ PALETTES REFRISES #4\ntod EH E20 #<|\na fes He LE\n198588 du 01-07-1698 - PRODUITS [A] Règlement oigatft avant 20 jours; Réglement obligatoire avant 30 jours décade ; [E] Non réglementés; [5] Surgels ou congetés ;[F] rai ou rigas:\nCODE TVA. TAUX TVA. MONTANT H.T. MONTANT TVA. NET À PAYER SIGNATURE CLIENT\n1 ete) MER SY 17.81 341.70 EUR VD\nA\n. des condifione- . spéciques monbons. tre mejputtes. faites payttiss à Lo GO ‘AU COMRIRRT A LA LVRAISON\nCon rm:\na to ihe ction danny ht ors. As 9 5 1 or i rai 0800 4 ED “complétèu OR fas finaecisrs à ta charge Cu des\nde contastation ou Ua Kige quetcorique, la Trburel do Cormunaroa da LA ROCHEJSUR/VON sara sed compétent.\n2 oe eg dire Bm SES Ga 4 BET\ndamations : viande: ns . sui BISON, | n--0\"<00 00e mme ee ce Geee ee cent Hama See de CS SCA NET CESSE asses\none 5 Vlogs acvepiess iiidement | PAPILLON DETACHABLE A JOINDRE A VOTRE RÈGLEMENT - MERCI\nModa do Règlamment : i\nH\nA régler au plus tard be : |\n;\ni\n|\n; i\n|\ni",
+    "structureDurationSeconds": 1.7,
+    "structured": {
+      "currency": "EUR",
+      "lines": [
+        {
+          "label": "EPIN. PALET BRANCHE, EQUI 2, 5K",
+          "quantity": 2,
+          "unit_price": 35
+        },
+        {
+          "label": "BEIGNET CHOCO/HOISETTE 756X48Q",
+          "quantity": 2,
+          "unit_price": 30
+        },
+        {
+          "label": "OIGNON CURE",
+          "quantity": 2,
+          "unit_price": 7.44
+        },
+        {
+          "label": "ECHALOTF COUPE",
+          "quantity": 2,
+          "unit_price": 5.45
+        },
+        {
+          "label": "AIL COUPE",
+          "quantity": 1,
+          "unit_price": 5.8
+        },
+        {
+          "label": "PERSIL COUPE",
+          "quantity": 1,
+          "unit_price": 4.14
+        },
+        {
+          "label": "CHOU CREME PAR. VANIL",
+          "quantity": 13,
+          "unit_price": 10.5
+        },
+        {
+          "label": "BRUNOISE LEGUMES",
+          "quantity": 5,
+          "unit_price": 4.45
+        }
+      ],
+      "invoice_date": "22/05/26",
+      "supplier_name": "SOCÉTÉ INDUSTRIELLE RAISON FRÈRES",
+      "total_ht": 323.89,
+      "total_ttc": 341.7
+    }
+  },
+  {
+    "file": "testfiles/Facture Marion 4.jpg",
+    "mime": "image/jpg",
+    "pageCount": 1,
+    "ocrDurationSeconds": 11.4,
+    "text": "xr) CENTRE ASC: cars ASC-C-02880 2 Gary\nBK 550 Rus Morare Salar Agrément N° FA 37 179 002 CE SE EEA\nNes ZA n°1 du paption CS 12106 Agrément N° FR 86 183 002 CE sr dé\n. Rl BIO: certilé FR-BIO-10 a \\ 5)\nPassionFroid Tél: 247234130 ida a [OR Da drame\nA rouse pamana Fax: (47294129\nBORDEREAU DE LIVRAISON N° 7879935312 du 29.05.2026\nHi EXEMPLAIRE CLIENT\n103590 Code fournisseur: 3010614383991\nREST SCO FLORA TRISTAN\nBOULEVARD EMILE PLET Care\n72230 MULSANNE\nTél: 0243429984\nMAIRIE DE MULSANNE\n: RUE EMILE ARROUET\nee ee 72230 MULSANNE\nId TVA facturé Devise\n| FRE7217202134 Euro\n| Réforme nationale de la facturation au 1er septembre 2026.\n| Êtes-vous prêt ? Consultez impots. gouv.fr\neen iii\n|| Toumée- 1090T6VEF\n|\npe TE te SN EEO es RP LE Qi\n| Ligne - Article - Désignation Qtélivrée Qté fact. UF PU TVA MT HT\nSenmpotormospourtescotes o_o\n| Commande n° TEL du 29/05/2026 à\n| 70/0 3172 Beurre doux 500Gx20 /10KG 6,000 PLQ 3,000 KG 6,062 4340 En 18,18\n| “oui 7418 Cremelogera18% UHTLFR(ILx6)SDQ. 2,000 COL. 12000 wm LL, 3 EVR\nay 24456 Beurre micro 1f2sel (10Gx100)x8 Presidt 2,000 COF 200 KG ME 01 So P 2084\n| 40 33472 Tran ommental 28% 5x15CM LFR (15Gx32)x10 2,000 BOT 2000 BOT REN EE AD F1 2526\n9 42024  Ytbrasse fruit mixe BIO LFR(100Gx4)x6 N 15000 COL 360000 POT | 0480 BE SO F1 17604\n170/ 61947 | Tomme noire Pyrenees 28% IGP 4,5KG x2 1,000 COL ses Ke 1697 ASH 60 F 1 1641\n‘180/ 147430 Escal dde VF siv (80H10Gx10)x5/5KG pam BOO0COL 29122 KE (OCTO ;\n160/ 226972 Lait 112 ecreme BIO LFR (1Lx8) Verneuil 10,000 COL wow L 116 FO FOF 80 —\n110/ 229826 Kirl creme lait 29% LFR (18Gx80)x6/480 2000COF 10000 PU 001 SOO 48,16\n180 253219 | Yt sucre LFR(116Gx4)x12 Danone 2000 00L tooo POT O0 5loo F) 28\n120/ 202461 OEuf dur cal PPA CE2 ODF(43/63Gx10x4) 10000 COL 40000 PU 037 ARE HOF 1880 —\n8 293861 St Nectairo laitier 27% AOP 1,75KGx2 1,000 COL 682 KG 1144 2 2-aeuF 1 4\n130/ 326657 Yt boire fraise LFR AEF (100Gx4x6) Nova 5,000 COL 12900 BL. 04 CO A0 FD 56,88\n150/ 326501 Mini Babybel rge 23% CEZ (20Gx96)x1 1,000 COL 00 PY 07 BETOF 1 8115\n181/ 237459 Carotte rondelle 6-7mn CE2 AEF SKGx2 Bd 3,000 COL BHO KG 18 57,908 1 5191\n184 280184 Feullleto pecheur (70Gx45) 1,000 COL 45000 PU 0708 $1 3177\n182/ 304318 Crepe emmental (150Gx32) MARIE 2,000 COL 84000 PU 4009 si 6458\n184 347730 Panler dubarry (70Gx60)/4,2KG 1,000 COL 8000 PU 051 1 31,86\nTotal commande n° TEL du 29/05/2028 146243\nTotal 63Colis 272,018 Kg N° commande(s) Pomona 3127123519\neee eee ————\nRemarques Emargementcllent\nCER 0\n———— ee TT re à ae 1? Fre DE\nLivré Rendu HT, __TVA — Montant TVA \\ - | Neräpayer: « LOR@00 EUR |\n— — | 16% TRE \"008 {pate ch ag 4 PA Mi 25\nOPN Tt I] Ge a cd\nGilles | JoTALMT  TOTATVA | NoireIBAN:SGTORSGHATEABUAW |\nmx AE TR EE lc Co FATS\n——#—— ii 2\"\nAutres 151 to nS Cl ve DR\n; ad 4 0  2——— kr 4\nTo i AN ib CI RT NE RT es oh Sit host Re\ni de rolard: faux de refnarcorment de la BCE majoré de 10 points Ns dernières CGV sont accessibles sur notre sts lemet = === Zee Hal\nbik oii RH AT EL TRS Se do Jif ru;\nns ohms A 4 ME ll OT a EN ; ;\n“es Cd a Woe ce Te :\n WAPARC A Tel da hi Hal de 557300 OFLA met SEK] |",
+    "structureDurationSeconds": 3.7,
+    "structured": {
+      "currency": "Euro",
+      "lines": [
+        {
+          "label": "Beurre doux 500Gx20 /10KG",
+          "quantity": 6,
+          "supplier_reference": "3172",
+          "unit": "PLQ",
+          "unit_price": 3.03
+        },
+        {
+          "label": "Cremelogera18% UHTLFR(ILx6)",
+          "quantity": 2,
+          "supplier_reference": "7418",
+          "unit": "COL",
+          "unit_price": 12
+        },
+        {
+          "label": "Beurre micro 1f2sel (10Gx100)x8 Presidt",
+          "quantity": 2,
+          "supplier_reference": "24456",
+          "unit": "COF",
+          "unit_price": 20.84
+        },
+        {
+          "label": "Tran ommental 28% 5x15CM LFR (15Gx32)x10",
+          "quantity": 2,
+          "supplier_reference": "33472",
+          "unit": "BOT",
+          "unit_price": 25.26
+        },
+        {
+          "label": "Ytbrasse fruit mixe BIO LFR(100Gx4)x6",
+          "quantity": 15,
+          "supplier_reference": "42024",
+          "unit": "COL",
+          "unit_price": 11.76
+        },
+        {
+          "label": "Tomme noire Pyrenees 28% IGP 4,5KG x2",
+          "quantity": 1,
+          "supplier_reference": "61947",
+          "unit": "COL",
+          "unit_price": 16.97
+        },
+        {
+          "label": "Lait 112 ecreme BIO LFR (1Lx8) Verneuil",
+          "quantity": 10,
+          "supplier_reference": "226972",
+          "unit": "COL",
+          "unit_price": 11.6
+        },
+        {
+          "label": "Kirl creme lait 29% LFR (18Gx80)x6/480",
+          "quantity": 2,
+          "supplier_reference": "229826",
+          "unit": "COF",
+          "unit_price": 24.08
+        },
+        {
+          "label": "Yt sucre LFR(116Gx4)x12 Danone",
+          "quantity": 2,
+          "supplier_reference": "253219",
+          "unit": "COL",
+          "unit_price": 14.4
+        },
+        {
+          "label": "OEuf dur cal PPA CE2 ODF(43/63Gx10x4)",
+          "quantity": 10,
+          "supplier_reference": "202461",
+          "unit": "COL",
+          "unit_price": 1.88
+        },
+        {
+          "label": "St Nectairo laitier 27% AOP 1,75KGx2",
+          "quantity": 1,
+          "supplier_reference": "293861",
+          "unit": "COL",
+          "unit_price": 24.42
+        },
+        {
+          "label": "Yt boire fraise LFR AEF (100Gx4x6) Nova",
+          "quantity": 5,
+          "supplier_reference": "326657",
+          "unit": "COL",
+          "unit_price": 11.37
+        },
+        {
+          "label": "Mini Babybel rge 23% CEZ (20Gx96)x1",
+          "quantity": 1,
+          "supplier_reference": "326501",
+          "unit": "COL",
+          "unit_price": 81.15
+        },
+        {
+          "label": "Carotte rondelle 6-7mn CE2 AEF SKGx2 Bd",
+          "quantity": 3,
+          "supplier_reference": "237459",
+          "unit": "COL",
+          "unit_price": 18.57
+        },
+        {
+          "label": "Feullleto pecheur (70Gx45)",
+          "quantity": 1,
+          "supplier_reference": "280184",
+          "unit": "COL",
+          "unit_price": 31.77
+        },
+        {
+          "label": "Crepe emmental (150Gx32) MARIE",
+          "quantity": 2,
+          "supplier_reference": "304318",
+          "unit": "COL",
+          "unit_price": 32.29
+        },
+        {
+          "label": "Panler dubarry (70Gx60)/4,2KG",
+          "quantity": 1,
+          "supplier_reference": "347730",
+          "unit": "COL",
+          "unit_price": 31.86
+        }
+      ],
+      "invoice_date": "29.05.2026",
+      "invoice_number": "7879935312",
+      "supplier_name": "PassionFroid",
+      "total_ht": 1462.43
+    }
+  },
+  {
+    "file": "testfiles/Scan17-03-2026-131005.pdf",
+    "mime": "application/pdf",
+    "pageCount": 4,
+    "ocrDurationSeconds": 22.3,
+    "text": "| PRO A PRO CHAPONNAY CODE TVA : FRA1 385 006 234 STANDARD : 04 37 23 63 00 |\n| 275, rue André impdre  A.ALCOOL FRO06263E0317 FAX : 04 37 23 63 99 |\n| Parc affaire Vallée Ozon A.SANIT FR 69270023CE COMMANDE : 04 37 23 63 40 |\n| 69970 CHAPONNAY SIRET 385 006 234 00137 |\n| RIB BNPAFRPPXXX FR7630004025110001048688268 |\nLL...\n! Entité Juridique\n| sasU PRO A PRO |\n| 1419 Avenue d'Italie |\n| 82032 MONTAUBAN CEDEX\n+...\nAdresse de facturation Adresse de livraison\nBON DE LIVRAISON / DUPLICATA | TRAIT'ALPES - 38-50553 | | TRATT'ALEES - 38-50553 |\nN° Bon : 3465212 | LI\nCode Tournée : 38P-16/03/2026-0 | [1 |\nCode client  : 380260 | 378 rue des vingt Toises | | 378 rue des Vingt Toises |\nLibellé CEE  : FR273481543452 | |\nLicence Alcool : UT098/2079XYJ08 | 38950 ST MARTIN LE VINOUX | | 38950 ST MARTIN LE VINOUX\nReprésentant : W /C63/ | I\nDate Edition : 13/03/2026\npate livr. prévue : 16/03/2026\nNe Page :\nRéférence de la commande : / 6490131 / /\nC/Fournisseur : 3664217069006 C/Etablissement : 38-50553\n| c/article | U.V. | Désignation Marque | Quantité | tRem | PU Net HT |TVA| PU Net TIC] Montant HT\nee D A\n| 163729 | sac | Pépinettes HVE 5K Alpina Savoie | 4 | I” 16,200 | 1 | 17,001 | 64,80\n| 27213 | CRT | Tome noire envelop.30% 25gx100 Vie de Château | 5 | | 30,100 | 1| 31,756 | 270,90\n| 59748 | CRT | Emmental bio 29% 20g x100 vie de Château | 5 | | 30,200 | 1| 31,861 | 271,80\nI 28394 | LOT | Crème dessert café 125g x4 Mamie Nova | 6 | | 1,216 | 1 | 1,283 | 216,74\n| 167443 | LOT | Flan Novly chocolat ETH 30g x4 Nova | 108 | | 0.736 | 1 | 0,776 | 79,43\n| Facture par EDI | | | [1 |\nEy M D EO SE EO\nA\nLes produits contenant la mention \"Bio\" dans le libellé sont des produits issus\nde l'agriculture biologique certifiés par ECOCERT SAS F-32600 (FR-BIO-01)\n| Récapitulatif | Code T.V.A. I [61 = 5,50] I I | Totaux Euros\n| Bon de Livraison | | | | | | |\n| [Montant H.T. | | 803,73 | | | | 803,73\n| Date : 16/03/2026 | Montant TAXES | | 44,20 | | | | 44,20\n| We Bon : 3465212 | Montant T.T.C. | | 847,93 | | | | 847,93\n| Mat HT: 803,73 | | | | | | | I\n[0 SY NS) NE EE) WE\nRESERVE DE PROPRIETE : Ces marchandises resteront notre propriété jusqu'à leur réglement complet (Loi du 12/05/80 N°80.335)\n\n----- page suivante -----\n\n| PRO A PRO CHAPONNAY CODE TVA : FR41 385 006 234 STANDARD : 04 37 23 63 00 |\n\n| 275, rue André Ampere A.ALCOOL FRO06263E0317 FAX : 04 37 23 63 99 |\n\n| Pare affaire Vallée Ozon A.SANIT FR 69270023CE COMMANDE : 04 37 23 63 40 |\n\n| 69970 CHAPONNAY SIRET 385 006 234 00137 |\n\n| RIB BNPAFRPPXXX FR7630004025110001048688268 |\n\n|\n\n! Entité Juridique\n\n| sASU PRO A PRO |\n\n| 1419 Avenue d'Italie |\n\n| 82032 MONTAUBAN CEDEX\n\n! Adresse de facturation Adresse de livraison\n\nBON DE LIVRAISON / DUPLICATA | TRAIT'ALPES - 38-50553 | | TRAIT'ALZES - 38-50553 1\nN° Bon : 3465213 | 1\n\nCode Tournée : 38P-16/03/2026-0 | ll |\nCode client  : 380260 | 378 rue des Vingt Toises | | 378 rue des Vingt Toises |\nLibellé CEE |: FR273481543452 | |\n\nLicence Alcool : UT098/2079X¥09 | 38950 ST MARTIN LE VINOUX | | 38950 ST MARTIN LE VINOUX\n\nReprésentant : W /C63/ [ I\n\nDate Edition : 13/03/2026\n\nDate livr. prévue : 16/03/2026\n\nN° Page :\n\nRéférence de la commande : / 64s0134 / /\n\nC/Fournisseur : 3664217069006 C/Etablissement : 38-50553\n\n| c/article | UV. | Désignation Marque | Quantité | *Rem | PU Net HT |TVA| PU Net TTC] Montant HT\neh\n| 56704 | PLT | Belair au café 45g x16 Symphonie (EE | | 5,344 | 1 | 5,638 | 197,73\n| Facture par EDI | | | od |\nGy EN EU A EN RE\n\nLes produits contenant la mention \"Bio\" dans le libellé sont des produits issus\nde l'agriculture biologique certifiés par ECOCERT SAS F-32600 (FR-BIO-01)\n\n| Récapitulatif | Code T.V.A. I | o1= s,50 | | | | Totaux Euros\n\n| Bon de Livraison | | | | | | I\n\n| | wontant wor. | | 197,73 | | | | 197,73\n| Date : 16/03/2026 | Montant TAXES | | 10,88 | | | | 10,88\n| N° Bon : 3465213 | Montant T.T.C. | | 208,61 | | | | 208,61\n| mnt mT: 197,73 | | | | | | | 1\nlj\nRESERVE DE PROPRIETE : Ces marchandises resteront notre propriété jusqu'à leur réglement complet (Loi du 12/05/80 N°80.335)\n\n----- page suivante -----\n\n| PRO À PRO CHAPONNAY CODE TVA : FR41 385 006 234 STANDARD : 04 37 23 63 00 |\n\n| 275, rue André Ampère A.ALCOOL FRO06263E0317 FAX : 04 37 23 63 99 |\n\n| Parc affaire Vallée Ozon A.SANIT FR 69270023CE COMMANDE : 04 37 23 63 40 |\n\n| 69970 CHAPONNAY SIRET 385 006 234 00137 |\n\n| RIB BNPAFRPPXXX FR7630004025110001048688268 |\n\n| SE 0 —\n\nEntité Juridique\n\n| SASU PRO A PRO !\n\n| 1419 Avenue d'Italie |\n\n| 82032 MONTAUBAN CEDEX |\n\n1 — — SE\n\nAdresse de facturation Adresse de livraison\n\nBON DE LIVRAISON / DUPLICATA | TRAIT'ALPES - 38-50553 | | TRAIT'ALPES - 38-50553 i\nN° Bon : 3465214 | |\n\nCode Tournée : 38P-16/03/2026-0 | I |\nCode client  : 380260 | 378 rue des Vingt Toises | | 378 rue des Vingt Toises |\nLibellé CEE |: FR273481543452 | LI\n\nLicence Alcool : UT098/2079XYJ0S | 38950 ST MARTIN LE VINOUX | | 38950 ST MARTIN LE VINOUX\n\nReprésentant : W /C63/ | 11\n\npate Edition : 13/03/2026\n\nDate livr. prévue : 16/03/2026\n\nN° Page :\n\nRéférence de la commande : / 6430565 / /\n\nC/Fournisseur : 3664217069006 C/Etablissement : 38-50553\n\n| c/Article | u.v. | Désignation Marque | Quantité | %Rem | PU Net HT [TVA] PU Net TTC| Montant HT\nee OO Oo\n| 167342 | CRT | Panier Dubarry 70g x60 BE) | |. 19,200 | 1 | 20,286 | 57,60\n| Facture par EDI | | | I | |\n\n_ vr ey\n\nLes produits contenant la mention \"Bio\" dans le libellé sont des produits issus\nde l'agriculture biologique certifiés par ECOCERT SAS F-32600 (FR-BIO-01)\n\n| Récapitulatif | Code T.V.A. 1 | o1= 5,50] I I | Totaux Euros\n\n| Bon de Livraison | | | | | | |\n\n| [Montant #.T. | | 57,60 | | | | 57,60\n| Pate : 16/03/2026 | Montant TAXES | | 3,17 | | | | 3,17\n| N° Bon : 3465214 | Montant T.T.C. | 1 60,77 | I | I 60,77\n| moe wT: 57,60 | | | | | | | !\nFy I) IN NE\nRESERVE DE PROPRIETE : Ces marchandises resteront notre propriété jusqu'à leur réglement complet (Loi du 12/05/80 N°80.335)\n\n----- page suivante -----\n\n(SEE‘OBoN 08/50/27 NP ToT) qoTduoo queweTÉ9z INST R,NDEN( 9397doxd 9I30U QUOTOISOI SOSTPURUOIEU SOD © GIAINAONA 5A HANASEX\n\nI I I | I | | |\n\n| | | | | | | | 0z‘oz9 “1H QUN |\nTe‘vs9 | | | | Te’vss | | “D‘L'L'auequoN | stzssee = uog on |\nTURE | | | | tx‘ve | |  suxvz quequou | 9zoz/€0/9T : o3ea |\noz‘ozs | | | |_oz'ozs | | “L'H Juejuom | |\nI | | | I | | wostezATT sp vog |\n\nsong xnesoz | | | | os's =10 | | \"W'A'1 ®poD | 3TaemaTdesau |\newe FF less = 00 I | ‘WAR 8009 | 3TaeTmaTdenau\n\n(TO-OIE-WJ) 009Z£-4 SYS IUFDODN Ted SprFTITOO SnbTHOTOTq SINITNOTIBE,T ap\nSMSST SITNPOIÂ SEP QUOS PTTIAFT ST SUD LOTEu UOTIUSW ET qUEUSAUOO SIINPOIÉ 5971\n\n|\n\n| [I | I | Tag red aimjoea |\n\n05°Ly | set’ | T | 8ss'e I 1 a | Foup OTI9H XS'z 59p ue SUOUBTO | HIS | 6TEEST |\n8.802 | tet'orr | T | ose'vor | | = | =dooos  ¥S's 50OT &St 3TmD J&A Iq HS | IM | vESHOT |\nz6‘ese | esszs | 1 | sev'or | | s | ŸS B08/0S dn E> eputp games | ud | eLzsst |\n| fol I I | | | |\n\nIH JUeJUON [DIL 30N na [VAL] JH 39N na | wes | sarauero | anbzen vorseustsea | ‘an | eremaav/d |\nESSOS-BE * JUSWPSSIIQPIA/D 900690/TZV99E : INISSTUINOZ/D\n\n/ / tsvstss / * Bpueuuoo eT 9p souexezeu\n\n: oBed oN\n\n9202/€0/9T : anapxd \"IAT 3rd\n\nszoz/co/eT  : voraTpa sie\n\n- a /58D/ M:  queauesgadeu\nXOONIA ST NIL¥WW LS 0S68¢ | | XNONIA ET NILNWW LS 0S68€ | 60PAX6L0Z/86010 : TOOOTW BOUBOTT\n\n[I | æsvevsterezzua s mad STTeayT\n\n| sestoz 36ua sep ons sie | | sestoL abuta sep anz 8ce | 09208 © queTtD pod\n! Il | 0-5z0z/€0/9T-ase : sauxmoz pod\nI | STZSIVE : WOH oN\n\n1 £5505-8¢ - sadTv.Lrvaz | | £5505-8€ - SHdTV.LIVUL | VANDITANA / NOSTVHATT 3a NOH\n\nTU uosTeaATT ap esseapu TUTO  uoraeinioej op osseapme —\n\n| |\n\n| XBQED NVENVINON Z£028 |\n\n| STTeAI.D nveay 6TVT |\n\n| Oua ¥ Oua _nsvs |\n\nDO embrpyane vw DO\n\n| |\n\n| 89Z8898Y0T000TTSZOV000EILY XXXddWaVaNE ETH |\n\n| LETOO ¥EZ 900 SBE IFWIS AWNNOaWA> 0L669 |\n\n| ov €9 €z LE #0 : HANWWWOD HDEZO0LZ69 Ud LINVS'W UOZO S9TTPA SITe3je oXeq |\n\n| 66 €S € LE vO © XNA LTEONE9ZSOONZ TOOOTWW  exgdur sxpuv SMT ‘SLT |\n\n| 00 €9 €e LE vo : quvavis VEZ 900 SBE THE * VAL 00D AVNNOAVHD Oxd V Oda |",
+    "structureDurationSeconds": 1.7,
+    "structured": {
+      "currency": "EUR",
+      "lines": [
+        {
+          "label": "Pépinettes HVE 5K Alpina Savoie",
+          "quantity": 4,
+          "unit_price": 16.2
+        },
+        {
+          "label": "Tome noire envelop.30% 25gx100 Vie de Château",
+          "quantity": 5,
+          "unit_price": 30.1
+        },
+        {
+          "label": "Emmental bio 29% 20g x100 vie de Château",
+          "quantity": 5,
+          "unit_price": 30.2
+        },
+        {
+          "label": "Crème dessert café 125g x4 Mamie Nova",
+          "quantity": 6,
+          "unit_price": 1.216
+        },
+        {
+          "label": "Flan Novly chocolat ETH 30g x4 Nova",
+          "quantity": 108,
+          "unit_price": 0.736
+        },
+        {
+          "label": "Belair au café 45g x16 Symphonie",
+          "quantity": 37,
+          "unit_price": 5.344
+        },
+        {
+          "label": "Panier Dubarry 70g x60",
+          "quantity": 3,
+          "unit_price": 19.2
+        }
+      ]
+    }
+  },
+  {
+    "file": "testfiles/Numérisation_20251009 (6).pdf",
+    "mime": "application/pdf",
+    "pageCount": 1,
+    "ocrDurationSeconds": 18.9,
+    "text": "Site de livraison : 003332 - CHEOPS\n55, RUE DES ANCIENNES ECOLES NORMALES D'INSTITUTEURS 87009 LIMOGES CEDEX FRANCE\nTVA “  Dénominationdel'article ~~ vas oe. . ww oe oo on Total HT\nLe . os oc re unitaire prix remise/charge\n550 1-DONUT 1,00 29,75 (CAR) -2,98 26,78\nRéférence produit : 025177\nDate de livraison : 25/07/2025 - N° bon de\nlivraison : 00341712\n550 2 - FLAN CHOCOLAT DIAM 270 1,00 73,51 (CAR) -7,35 66,16\nRéférence produit : 027317\nDate de livraison : 25/07/2025 - N° bon de\nlivraison : 00341712\n5,50 3- MOUSSELINE TROPEZIENNE DIAM 260 2,00 18,73 (CAR) -3,75 33.71\nRéférence produit : 027369\nDate de livraison : 25/07/2025 - N° bon de\nlivraison : 00341712\n550 4-BEIGNET FRAMBOISE 75 G 2,00 20,30 (CAR) -4,06 36,54\nRéférence produit : 833578\nDate de livraison : 25/07/2025 - N° bon de\nlivraison : 00341712\n5,50 5-BEIGNET PARFUM CHOCOLAT NOISETTE 75 G 2,00 20,29 (CAR) -4,06 36,52\nRéférence produit : 833582\n| Date de livraison : 25/07/2025 - N° bon de\nlivraison : 00341712\n20,00 6 - Participation forfaitaire 1,00 2,24 (UNITE) 2,24\nsur 199.71 EUR - Montant = 2.24 EUR\nTotaux du site de livraison, pour information :\nBrut HT 224,15\nRemises/charges a la ligne -22,20 |\nNet HT 201,95\nFRIGEGRO - 53 RUE CLAUDE HENRI GORCEIX Z. | NORD 87280 LIMOGES ( FR) FRANCE\n- Numéro de TVA intra-communautaire : FR26350833323",
+    "structureDurationSeconds": 5.4,
+    "structured": {
+      "currency": "EUR",
+      "lines": [
+        {
+          "label": "DONUT",
+          "quantity": 1,
+          "discount_percent": 10,
+          "line_total": 26.78,
+          "supplier_reference": "025177",
+          "unit": "CAR",
+          "unit_price": 29.75
+        },
+        {
+          "label": "FLAN CHOCOLAT DIAM 270",
+          "quantity": 1,
+          "discount_percent": 10,
+          "line_total": 66.16,
+          "supplier_reference": "027317",
+          "unit": "CAR",
+          "unit_price": 73.51
+        },
+        {
+          "label": "MOUSSELINE TROPEZIENNE DIAM 260",
+          "quantity": 2,
+          "discount_percent": 20,
+          "line_total": 33.71,
+          "supplier_reference": "027369",
+          "unit": "CAR",
+          "unit_price": 18.73
+        },
+        {
+          "label": "BEIGNET FRAMBOISE 75 G",
+          "quantity": 2,
+          "discount_percent": 20,
+          "line_total": 36.54,
+          "supplier_reference": "833578",
+          "unit": "CAR",
+          "unit_price": 20.3
+        },
+        {
+          "label": "BEIGNET PARFUM CHOCOLAT NOISETTE 75 G",
+          "quantity": 2,
+          "discount_percent": 20,
+          "line_total": 36.52,
+          "supplier_reference": "833582",
+          "unit": "CAR",
+          "unit_price": 20.29
+        },
+        {
+          "label": "Participation forfaitaire",
+          "quantity": 1,
+          "discount_percent": null,
+          "line_total": 2.24,
+          "supplier_reference": null,
+          "unit": "UNITE",
+          "unit_price": 2.24
+        }
+      ],
+      "invoice_date": "25/07/2025",
+      "supplier_name": "FRIGEGRO",
+      "total_ht": 201.95
+    }
+  }
+]
