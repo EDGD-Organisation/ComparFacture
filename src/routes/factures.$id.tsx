@@ -3,36 +3,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Check,
-  Download,
-  FileSearch,
-  Loader2,
-  Pencil,
-  RefreshCw,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Check, Download, Loader2, Pencil, RefreshCw, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { ProductPicker, type PickedProduct } from "@/components/ProductPicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  ocrPreviewInvoice,
-  ocrStructuredPreviewInvoice,
-  rematchInvoice,
-} from "@/lib/invoices.functions";
+import { rematchInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
 import { comparableUnitPrice } from "@/lib/pack";
 import { fetchCheapestByOzego, ozegoGap, type OzegoBest } from "@/lib/ozego";
@@ -92,13 +71,7 @@ function InvoiceDetail() {
   const queryClient = useQueryClient();
   const [picking, setPicking] = useState<Line | null>(null);
   const [mode, setMode] = useState<"fournisseur" | "ozego" | "recap">("recap");
-  const [ocrText, setOcrText] = useState<string | null>(null);
-  const [ocrOpen, setOcrOpen] = useState(false);
-  const [structuredText, setStructuredText] = useState<string | null>(null);
-  const [structuredOpen, setStructuredOpen] = useState(false);
   const rematch = useServerFn(rematchInvoice);
-  const ocrPreview = useServerFn(ocrPreviewInvoice);
-  const ocrStructuredPreview = useServerFn(ocrStructuredPreviewInvoice);
 
   const invoiceQuery = useQuery({
     queryKey: ["invoice", id],
@@ -150,24 +123,6 @@ function InvoiceDetail() {
     onSuccess: () => {
       toast.success("Rapprochement relancé");
       queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const ocr = useMutation({
-    mutationFn: () => ocrPreview({ data: { invoiceId: id } }),
-    onSuccess: (result) => {
-      setOcrText(result.text || "(aucun texte détecté)");
-      setOcrOpen(true);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const ocrStructured = useMutation({
-    mutationFn: () => ocrStructuredPreview({ data: { invoiceId: id } }),
-    onSuccess: (result) => {
-      setStructuredText(JSON.stringify(result, null, 2));
-      setStructuredOpen(true);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -678,26 +633,6 @@ function InvoiceDetail() {
               <RefreshCw className="size-4" />
             )}
             Relancer le rapprochement
-          </Button>
-          <Button variant="outline" disabled={ocr.isPending} onClick={() => ocr.mutate()}>
-            {ocr.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <FileSearch className="size-4" />
-            )}
-            Aperçu OCR (Tesseract)
-          </Button>
-          <Button
-            variant="outline"
-            disabled={ocrStructured.isPending}
-            onClick={() => ocrStructured.mutate()}
-          >
-            {ocrStructured.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Sparkles className="size-4" />
-            )}
-            Structurer (Tesseract + Claude)
           </Button>
         </div>
       </div>
@@ -1356,38 +1291,6 @@ function InvoiceDetail() {
           onPick={(product) => void applyMatch(picking, product)}
         />
       ) : null}
-
-      <Dialog open={ocrOpen} onOpenChange={setOcrOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-display">Texte extrait par OCR (Tesseract)</DialogTitle>
-            <DialogDescription>
-              Extraction brute, sans structuration en lignes de facture — utile pour vérifier la
-              qualité de lecture du document.
-            </DialogDescription>
-          </DialogHeader>
-          <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md bg-muted p-4 text-xs">
-            {ocrText}
-          </pre>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={structuredOpen} onOpenChange={setStructuredOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-display">
-              Facture structurée (Tesseract + Claude)
-            </DialogTitle>
-            <DialogDescription>
-              Texte OCR transformé en JSON structuré par Claude Haiku — aperçu uniquement, n'écrit
-              rien dans les lignes de facture.
-            </DialogDescription>
-          </DialogHeader>
-          <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md bg-muted p-4 text-xs">
-            {structuredText}
-          </pre>
-        </DialogContent>
-      </Dialog>
     </AppShell>
   );
 }

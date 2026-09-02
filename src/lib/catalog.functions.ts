@@ -26,33 +26,98 @@ export const importCatalog = createServerFn({ method: "POST" })
 
 const SyncInput = z.object({ url: z.string().url().optional() }).default({});
 
+// Forme renvoyée par GET /produits/comparatif (oze-back) : des groupes par identifiant
+// Ozego, chacun portant plusieurs offres fournisseur, plus une pagination à parcourir.
+// Une offre d'un groupe = une ligne "produit" une fois aplatie pour catalog_products.
+type ComparatifOffer = {
+  supplier?: { supplier_name?: string | null } | null;
+  supplier_ref?: string | null;
+  prix_nego?: string | number | null;
+};
+type ComparatifGroup = { ozego_id?: string | null; product_name?: string | null; offers?: unknown };
+
+function isComparatifPayload(
+  payload: unknown,
+): payload is { data: ComparatifGroup[]; pagination?: { totalPages?: number } } {
+  const data = (payload as { data?: unknown } | null)?.data;
+  return (
+    Array.isArray(data) && data.length > 0 && Array.isArray((data[0] as ComparatifGroup)?.offers)
+  );
+}
+
+function flattenComparatifGroups(groups: ComparatifGroup[]): Record<string, unknown>[] {
+  const rows: Record<string, unknown>[] = [];
+  for (const group of groups) {
+    const offers = Array.isArray(group.offers) ? (group.offers as ComparatifOffer[]) : [];
+    for (const offer of offers) {
+      rows.push({
+        reference: offer.supplier_ref,
+        label: group.product_name,
+        price: offer.prix_nego,
+        ozego_id: group.ozego_id,
+        supplier_name: offer.supplier?.supplier_name ?? null,
+      });
+    }
+  }
+  return rows;
+}
+
+async function fetchJson(url: string, apiKey: string | null) {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (apiKey) headers["x-api-key"] = apiKey;
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error(`L'API du catalogue a répondu ${response.status}`);
+  }
+  return (await response.json()) as unknown;
+}
+
 export const syncCatalogFromErp = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SyncInput.parse(input))
   .handler(async ({ data }) => {
     let url = data.url;
-    if (!url) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: settings } = await supabaseAdmin
-        .from("app_settings")
-        .select("erp_api_url")
-        .maybeSingle();
-      url = settings?.erp_api_url ?? undefined;
-    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: settings }, { data: secrets }] = await Promise.all([
+      supabaseAdmin.from("app_settings").select("erp_api_url").maybeSingle(),
+      supabaseAdmin.from("app_secrets").select("erp_api_key").maybeSingle(),
+    ]);
+    if (!url) url = settings?.erp_api_url ?? undefined;
+    const apiKey = secrets?.erp_api_key ?? null;
     if (!url) {
       throw new Error("Aucune URL d'API catalogue configurée dans les réglages");
     }
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!response.ok) {
-      throw new Error(`L'API du catalogue a répondu ${response.status}`);
+
+    // limit=1000 dès la 1ère page : sinon la 1ère page part sur le défaut de l'API
+    // (20), ce qui désynchronise totalPages du reste de la boucle et multiplie par
+    // ~50 le nombre de requêtes nécessaires pour tout parcourir.
+    const firstUrl = new URL(url);
+    firstUrl.searchParams.set("page", "1");
+    firstUrl.searchParams.set("limit", "1000");
+    const firstPayload = await fetchJson(firstUrl.toString(), apiKey);
+
+    let list: unknown[];
+    if (isComparatifPayload(firstPayload)) {
+      // Comparatif Ozego : paginé, à parcourir en entier avant l'import.
+      const rows = flattenComparatifGroups(firstPayload.data);
+      const totalPages = firstPayload.pagination?.totalPages ?? 1;
+      for (let page = 2; page <= totalPages; page += 1) {
+        const pageUrl = new URL(url);
+        pageUrl.searchParams.set("page", String(page));
+        pageUrl.searchParams.set("limit", "1000");
+        const payload = await fetchJson(pageUrl.toString(), apiKey);
+        if (isComparatifPayload(payload)) rows.push(...flattenComparatifGroups(payload.data));
+      }
+      list = rows;
+    } else {
+      const payload = firstPayload;
+      list = Array.isArray(payload)
+        ? payload
+        : Array.isArray((payload as { data?: unknown }).data)
+          ? ((payload as { data: unknown[] }).data as unknown[])
+          : Array.isArray((payload as { products?: unknown }).products)
+            ? ((payload as { products: unknown[] }).products as unknown[])
+            : [];
     }
-    const payload = (await response.json()) as unknown;
-    const list = Array.isArray(payload)
-      ? payload
-      : Array.isArray((payload as { data?: unknown }).data)
-        ? ((payload as { data: unknown[] }).data as unknown[])
-        : Array.isArray((payload as { products?: unknown }).products)
-          ? ((payload as { products: unknown[] }).products as unknown[])
-          : [];
 
     if (list.length === 0) throw new Error("Aucun produit trouvé dans la réponse de l'API");
 
@@ -126,4 +191,26 @@ export const syncCatalogFromErp = createServerFn({ method: "POST" })
 
     const { runCatalogImport } = await import("./catalog.server");
     return runCatalogImport({ products, source: "erp" });
+  });
+
+// erp_api_key never reaches the browser: it lives in app_secrets (service-role only,
+// see the migration). The settings page only ever learns whether a key is configured,
+// never its value, and can only replace it — not read it back.
+export const getErpApiKeyStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("app_secrets").select("erp_api_key").maybeSingle();
+  return { configured: Boolean(data?.erp_api_key) };
+});
+
+const SaveApiKeyInput = z.object({ apiKey: z.string().min(1) });
+
+export const saveErpApiKey = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => SaveApiKeyInput.parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("app_secrets")
+      .upsert({ id: true, erp_api_key: data.apiKey });
+    if (error) throw new Error(error.message);
+    return { saved: true };
   });

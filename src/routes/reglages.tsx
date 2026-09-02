@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { getErpApiKeyStatus, saveErpApiKey } from "@/lib/catalog.functions";
 
 export const Route = createFileRoute("/reglages")({
   head: () => ({
@@ -31,8 +33,10 @@ export const Route = createFileRoute("/reglages")({
 
 function SettingsPage() {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ auto: 0.9, review: 0.6, tolerance: 2 });
+  const [form, setForm] = useState({ auto: 0.9, review: 0.6, tolerance: 2, erpApiUrl: "" });
+  const [apiKeyInput, setApiKeyInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const runSaveApiKey = useServerFn(saveErpApiKey);
 
   const settings = useQuery({
     queryKey: ["settings"],
@@ -43,12 +47,29 @@ function SettingsPage() {
     },
   });
 
+  // The key's value never comes back to the browser (see catalog.functions.ts) — only
+  // whether one is currently configured, so the form can tell the user that much.
+  const apiKeyStatus = useQuery({
+    queryKey: ["erp-api-key-status"],
+    queryFn: () => getErpApiKeyStatus(),
+  });
+
+  const saveApiKey = useMutation({
+    mutationFn: (apiKey: string) => runSaveApiKey({ data: { apiKey } }),
+    onSuccess: () => {
+      setApiKeyInput("");
+      queryClient.invalidateQueries({ queryKey: ["erp-api-key-status"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   useEffect(() => {
     if (settings.data) {
       setForm({
         auto: settings.data.auto_confirm_score,
         review: settings.data.review_score,
         tolerance: settings.data.tolerance_percent,
+        erpApiUrl: settings.data.erp_api_url ?? "",
       });
     }
   }, [settings.data]);
@@ -60,7 +81,11 @@ function SettingsPage() {
       auto_confirm_score: form.auto,
       review_score: form.review,
       tolerance_percent: form.tolerance,
+      erp_api_url: form.erpApiUrl || null,
     });
+    // Only touch the key if the user typed a new one — leaving the field blank on
+    // save must not erase an already-configured key.
+    if (apiKeyInput.trim()) await saveApiKey.mutateAsync(apiKeyInput.trim());
     setSaving(false);
     if (error) {
       toast.error(error.message);
@@ -126,6 +151,44 @@ function SettingsPage() {
             />
             <p className="text-xs text-muted-foreground">
               Un écart inférieur à cette valeur n'est pas signalé comme anomalie.
+            </p>
+          </div>
+          <Button onClick={() => void save()} disabled={saving}>
+            Enregistrer
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6 max-w-xl">
+        <CardHeader>
+          <CardTitle className="font-display text-base">
+            Synchronisation catalogue (API Ozego)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="erpApiUrl">URL de l'API catalogue</Label>
+            <Input
+              id="erpApiUrl"
+              type="url"
+              placeholder="https://.../api/produits/comparatif"
+              value={form.erpApiUrl}
+              onChange={(event) => setForm({ ...form, erpApiUrl: event.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="erpApiKey">Clé API (header x-api-key)</Label>
+            <Input
+              id="erpApiKey"
+              type="password"
+              autoComplete="off"
+              placeholder={apiKeyStatus.data?.configured ? "•••••••• (déjà configurée)" : ""}
+              value={apiKeyInput}
+              onChange={(event) => setApiKeyInput(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Requise par l'endpoint comparatif Ozego, envoyée dans le header x-api-key. Laisser
+              vide pour conserver la clé actuelle.
             </p>
           </div>
           <Button onClick={() => void save()} disabled={saving}>

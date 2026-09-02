@@ -1,4 +1,4 @@
-import { embedTexts } from "./ai.server";
+import { embedTexts } from "./embeddings.server";
 import { derivePackFactor } from "./pack";
 import { serverSupabase } from "./db.server";
 import {
@@ -77,15 +77,18 @@ export async function matchLines(
     }
   }
 
-  // Index références / EAN du catalogue (une seule lecture)
+  // Index références / EAN du catalogue (une seule lecture).
+  // reference n'est unique que par fournisseur (deux fournisseurs peuvent partager la
+  // même référence) : refIndex est donc scopé par fournisseur. eanIndex reste global,
+  // un EAN identifie le même produit physique quel que soit le fournisseur qui le vend.
   const { data: products } = await supabase
     .from("catalog_products")
-    .select("id, reference, ean")
+    .select("id, reference, ean, supplier_name")
     .eq("is_active", true);
   const refIndex = new Map<string, string>();
   const eanIndex = new Map<string, string>();
   for (const p of products ?? []) {
-    refIndex.set(normalizeRef(p.reference), p.id);
+    refIndex.set(`${(p.supplier_name ?? "").toLowerCase()}::${normalizeRef(p.reference)}`, p.id);
     if (p.ean) eanIndex.set(normalizeRef(p.ean), p.id);
   }
 
@@ -118,7 +121,7 @@ export async function matchLines(
     // 2. Référence / EAN exacts
     const ref = normalizeRef(line.supplier_reference);
     if (ref.length >= 3) {
-      const byRef = refIndex.get(ref) ?? eanIndex.get(ref);
+      const byRef = refIndex.get(`${supplierKey}::${ref}`) ?? eanIndex.get(ref);
       if (byRef) {
         results[index] = {
           matched_product_id: byRef,

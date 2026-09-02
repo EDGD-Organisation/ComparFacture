@@ -1,8 +1,6 @@
-import { extractInvoice } from "./ai.server";
 import { serverSupabase } from "./db.server";
 import { matchLines, type Thresholds } from "./matching.server";
-import { extractTextFromFile } from "./ocr.server";
-import { structureInvoiceText } from "./structure.server";
+import { structureInvoiceImage } from "./structure.server";
 
 async function getThresholds(): Promise<Thresholds> {
   const supabase = serverSupabase();
@@ -47,11 +45,7 @@ export async function runInvoiceProcessing(invoiceId: string) {
       throw new Error("Impossible de lire le fichier de la facture");
 
     const base64 = toBase64(await download.data.arrayBuffer());
-    const extracted = await extractInvoice(
-      base64,
-      invoice.file_mime || "application/pdf",
-      invoice.file_name || "facture.pdf",
-    );
+    const extracted = await structureInvoiceImage(base64, invoice.file_mime || "application/pdf");
 
     let supplierId: string | null = null;
     if (extracted.supplier_name) {
@@ -103,7 +97,7 @@ export async function runInvoiceProcessing(invoiceId: string) {
       if (insertError) throw new Error(insertError.message);
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("invoices")
       .update({
         supplier_id: supplierId,
@@ -117,6 +111,7 @@ export async function runInvoiceProcessing(invoiceId: string) {
         error_message: null,
       })
       .eq("id", invoiceId);
+    if (updateError) throw new Error(updateError.message);
 
     return { lines: extracted.lines.length };
   } catch (caught) {
@@ -127,43 +122,6 @@ export async function runInvoiceProcessing(invoiceId: string) {
       .eq("id", invoiceId);
     throw new Error(message);
   }
-}
-
-/**
- * Runs Tesseract OCR over the invoice file and returns the raw extracted text,
- * without persisting it anywhere or attempting to structure it into header/line
- * fields — that's a separate step from `extractInvoice` (AI multimodal, used by
- * `runInvoiceProcessing`). Lets us verify OCR quality against a real file before
- * building a text→structured-data parser on top of it.
- */
-export async function runInvoiceOcrPreview(invoiceId: string) {
-  const supabase = serverSupabase();
-  const { data: invoice, error } = await supabase
-    .from("invoices")
-    .select("id, file_path, file_mime")
-    .eq("id", invoiceId)
-    .single();
-  if (error || !invoice) throw new Error("Facture introuvable");
-  if (!invoice.file_path) throw new Error("Aucun fichier associé à cette facture");
-
-  const download = await supabase.storage.from("invoices").download(invoice.file_path);
-  if (download.error || !download.data)
-    throw new Error("Impossible de lire le fichier de la facture");
-
-  const base64 = toBase64(await download.data.arrayBuffer());
-  return extractTextFromFile(base64, invoice.file_mime || "application/pdf");
-}
-
-/**
- * Chains the Tesseract OCR preview into Claude-based structuring
- * (structure.server.ts): OCR does the "reading", Claude does the
- * "understanding" — turning raw text into the same header+line-item shape
- * `extractInvoice` (Gemini multimodal) produces. Preview only, like
- * `runInvoiceOcrPreview` — doesn't write to invoice_lines or run matching.
- */
-export async function runInvoiceOcrStructuredPreview(invoiceId: string) {
-  const { text } = await runInvoiceOcrPreview(invoiceId);
-  return structureInvoiceText(text);
 }
 
 export async function runInvoiceRematch(invoiceId: string) {

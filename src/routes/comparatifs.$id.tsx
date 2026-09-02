@@ -3,7 +3,16 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, FileUp, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronsUpDown,
+  FileUp,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -18,11 +27,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { PROSPECT_STATUSES, statusMeta } from "@/lib/prospect-status";
 import { supabase } from "@/integrations/supabase/client";
 import { processInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, percent, shortDate } from "@/lib/format";
-import { fetchCheapestByOzego, ozegoGap, type OzegoBest } from "@/lib/ozego";
+import {
+  cheapestAmong,
+  fetchCheapestByOzego,
+  fetchOzegoVariants,
+  ozegoGap,
+  type OzegoBest,
+  type OzegoVariant,
+} from "@/lib/ozego";
 
 export const Route = createFileRoute("/comparatifs/$id")({
   head: () => ({
@@ -105,7 +131,11 @@ function ProspectComparison() {
     },
   });
 
-  async function updateProspect(patch: { status?: string; delivery_date?: string | null }) {
+  async function updateProspect(patch: {
+    status?: string;
+    delivery_date?: string | null;
+    preferred_suppliers?: string[];
+  }) {
     const { error } = await supabase.from("prospects").update(patch).eq("id", id);
     if (error) {
       toast.error(error.message);
@@ -114,6 +144,23 @@ function ProspectComparison() {
     queryClient.invalidateQueries({ queryKey: ["prospect", id] });
     queryClient.invalidateQueries({ queryKey: ["prospects"] });
   }
+
+  function togglePreferredSupplier(name: string) {
+    const current = prospectQuery.data?.preferred_suppliers ?? [];
+    const next = current.includes(name) ? current.filter((s) => s !== name) : [...current, name];
+    void updateProspect({ preferred_suppliers: next });
+  }
+
+  const suppliersQuery = useQuery({
+    queryKey: ["catalog-suppliers"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("distinct_catalog_suppliers");
+      if (error) throw new Error(error.message);
+      return (data ?? [])
+        .map((row) => row.supplier_name)
+        .filter((name): name is string => Boolean(name));
+    },
+  });
 
   const invoicesQuery = useQuery({
     queryKey: ["invoices", id],
@@ -219,6 +266,14 @@ function ProspectComparison() {
   });
   const bestByOzego: Map<string, OzegoBest> = ozegoQuery.data ?? new Map();
 
+  const ozegoVariantsQuery = useQuery({
+    queryKey: ["ozego-variants", [...new Set(ozegoIds)].sort().join(",")],
+    enabled: ozegoIds.length > 0,
+    queryFn: () => fetchOzegoVariants(ozegoIds),
+  });
+  const variantsByOzego: Map<string, OzegoVariant[]> = ozegoVariantsQuery.data ?? new Map();
+  const preferredSuppliers = prospectQuery.data?.preferred_suppliers ?? [];
+
   const analysis = (() => {
     let invoiced = 0;
     let catalog = 0;
@@ -295,6 +350,10 @@ function ProspectComparison() {
   const ozegoAnalysis = (() => {
     let invoiced = 0;
     let best = 0;
+    let sameSupplierTotal = 0;
+    let sameSupplierCount = 0;
+    let preferredTotal = 0;
+    let preferredCount = 0;
     let matched = 0;
     let unmatched = 0;
     let above = 0;
@@ -307,6 +366,7 @@ function ProspectComparison() {
       const supplier =
         line.invoices?.supplier_name || line.invoices?.file_name || "Fournisseur inconnu";
       const ozegoId = line.catalog_products?.ozego_id ?? null;
+      const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
       const bestRow = ozegoId ? bestByOzego.get(ozegoId) : undefined;
       const gap = ozegoGap(line, bestRow);
       if (!gap) {
@@ -326,6 +386,19 @@ function ProspectComparison() {
       entry.gap += gap.totalGap;
       entry.lines += 1;
       bySupplier.set(supplier, entry);
+
+      // Cas 1 : même produit Ozego, chez le fournisseur qui a émis CETTE facture.
+      const sameSupplierRow = cheapestAmong(variants, [supplier]);
+      if (sameSupplierRow?.price != null) {
+        sameSupplierTotal += sameSupplierRow.price * line.quantity * gap.packFactor;
+        sameSupplierCount += 1;
+      }
+      // Cas 3 : même produit Ozego, moins cher parmi la liste de fournisseurs préférés.
+      const preferredRow = cheapestAmong(variants, preferredSuppliers);
+      if (preferredRow?.price != null) {
+        preferredTotal += preferredRow.price * line.quantity * gap.packFactor;
+        preferredCount += 1;
+      }
     }
 
     const saving = invoiced - best;
@@ -338,6 +411,10 @@ function ProspectComparison() {
       unmatched,
       above,
       suppliers: [...bySupplier.entries()].sort((a, b) => b[1].gap - a[1].gap),
+      sameSupplierTotal,
+      sameSupplierCount,
+      preferredTotal,
+      preferredCount,
     };
   })();
 
@@ -348,10 +425,21 @@ function ProspectComparison() {
     const summary = XLSX.utils.aoa_to_sheet([
       ["Prospect", prospectQuery.data?.name ?? ""],
       ["Type de comparatif", "Identifiant Ozego (meilleur prix du groupe)"],
+      ["Fournisseurs préférés", preferredSuppliers.join(", ") || "(aucun défini)"],
       ["Total facturé (lignes rapprochées)", ozegoAnalysis.invoiced],
-      ["Total au meilleur prix Ozego", ozegoAnalysis.best],
+      ["Total au meilleur prix Ozego (tous fournisseurs)", ozegoAnalysis.best],
       ["Écart global", ozegoAnalysis.saving],
       ["Écart global %", ozegoAnalysis.savingPercent ?? ""],
+      [
+        "Total au prix Ozego même fournisseur",
+        ozegoAnalysis.sameSupplierTotal,
+        `(${ozegoAnalysis.sameSupplierCount} ligne(s))`,
+      ],
+      [
+        "Total au meilleur prix fournisseurs préférés",
+        ozegoAnalysis.preferredTotal,
+        `(${ozegoAnalysis.preferredCount} ligne(s))`,
+      ],
       ["Lignes avec identifiant Ozego", ozegoAnalysis.matched],
       ["Lignes sans identifiant Ozego", ozegoAnalysis.unmatched],
       [`Lignes > tolérance (${tolerance} %)`, ozegoAnalysis.above],
@@ -369,14 +457,20 @@ function ProspectComparison() {
     XLSX.utils.book_append_sheet(book, summary, "Synthèse");
 
     const rows = analysisLines.map((line) => {
+      const supplier = line.invoices?.supplier_name || line.invoices?.file_name || "";
       const ozegoId = line.catalog_products?.ozego_id ?? null;
+      const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
       const bestRow = ozegoId ? bestByOzego.get(ozegoId) : undefined;
+      const sameSupplierRow = cheapestAmong(variants, [supplier]);
+      const preferredRow = cheapestAmong(variants, preferredSuppliers);
       const gap = ozegoGap(line, bestRow);
+      const sameSupplierGap = ozegoGap(line, sameSupplierRow);
+      const preferredGap = ozegoGap(line, preferredRow);
       const k = gap?.packFactor ?? (line.pack_factor || 1);
       const lineInvoiced = line.line_total ?? (line.unit_price ?? 0) * line.quantity;
       const lineBest = gap ? (bestRow?.price ?? 0) * line.quantity * k : "";
       return {
-        Fournisseur: line.invoices?.supplier_name || line.invoices?.file_name || "",
+        Fournisseur: supplier,
         "N° facture": line.invoices?.invoice_number ?? "",
         "Date facture": line.invoices?.invoice_date ?? "",
         Fichier: line.invoices?.file_name ?? "",
@@ -392,18 +486,29 @@ function ProspectComparison() {
         "Qté ramenée à l'unité": line.quantity * k,
         "PU comparable": gap ? gap.comparablePrice : "",
         "Identifiant Ozego": ozegoId ?? "",
+        // Cas 1 : ce que le fournisseur de LA FACTURE facture, vu par Ozego.
+        "[Même fournisseur] PU Ozego": sameSupplierRow?.price ?? "",
+        "[Même fournisseur] Écart %": sameSupplierGap?.percentGap ?? "",
+        "[Même fournisseur] Écart total": sameSupplierGap?.totalGap ?? "",
+        // Cas 2 : moins cher, tous fournisseurs confondus.
         "Références du groupe": bestRow?.variants_count ?? "",
-        "Référence la moins chère": bestRow?.reference ?? "",
-        "Libellé Ozego": bestRow?.label ?? "",
-        "Fournisseur le moins cher": bestRow?.supplier_name ?? "",
+        "[Tous fournisseurs] Référence": bestRow?.reference ?? "",
+        "[Tous fournisseurs] Libellé Ozego": bestRow?.label ?? "",
+        "[Tous fournisseurs] Fournisseur": bestRow?.supplier_name ?? "",
         EAN: bestRow?.ean ?? "",
         Famille: bestRow?.family ?? "",
         "Unité Ozego": bestRow?.unit ?? "",
-        "Meilleur PU Ozego": bestRow?.price ?? "",
-        "Total au meilleur prix": lineBest,
-        "Écart unitaire": gap ? gap.unitGap : "",
-        "Écart total": gap ? gap.totalGap : "",
-        "Écart %": gap?.percentGap ?? "",
+        "[Tous fournisseurs] PU Ozego": bestRow?.price ?? "",
+        "[Tous fournisseurs] Total au meilleur prix": lineBest,
+        "[Tous fournisseurs] Écart unitaire": gap ? gap.unitGap : "",
+        "[Tous fournisseurs] Écart total": gap ? gap.totalGap : "",
+        "[Tous fournisseurs] Écart %": gap?.percentGap ?? "",
+        // Cas 3 : moins cher, restreint à la liste de fournisseurs préférés du prospect.
+        "[Préférés] Fournisseur": preferredRow?.supplier_name ?? "",
+        "[Préférés] Référence": preferredRow?.reference ?? "",
+        "[Préférés] PU Ozego": preferredRow?.price ?? "",
+        "[Préférés] Écart %": preferredGap?.percentGap ?? "",
+        "[Préférés] Écart total": preferredGap?.totalGap ?? "",
         "Hors tolérance": gap ? (Math.abs(gap.percentGap ?? 0) > tolerance ? "oui" : "non") : "",
         Rapprochement: line.catalog_products ? (line.match_status ?? "") : "non rapproché",
         "Validé manuellement": line.manual_override ? "oui" : "non",
@@ -585,6 +690,65 @@ function ProspectComparison() {
               }
             />
           </div>
+          <div className="grid gap-1">
+            <Label htmlFor="prospect-preferred-suppliers">Fournisseurs préférés</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="prospect-preferred-suppliers"
+                  variant="outline"
+                  role="combobox"
+                  className="w-72 justify-between font-normal"
+                >
+                  <span className="truncate text-left">
+                    {preferredSuppliers.length > 0
+                      ? `${preferredSuppliers.length} sélectionné${preferredSuppliers.length > 1 ? "s" : ""}`
+                      : "Aucun fournisseur choisi"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0">
+                <Command>
+                  <CommandInput placeholder="Rechercher un fournisseur…" />
+                  <CommandList>
+                    <CommandEmpty>Aucun fournisseur trouvé.</CommandEmpty>
+                    <CommandGroup>
+                      {(suppliersQuery.data ?? []).map((name) => (
+                        <CommandItem key={name} onSelect={() => togglePreferredSupplier(name)}>
+                          <Check
+                            className={cn(
+                              "mr-2 size-4",
+                              preferredSuppliers.includes(name) ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          {name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {preferredSuppliers.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {preferredSuppliers.map((name) => (
+                  <Badge key={name} variant="secondary" className="gap-1 pr-1 font-normal">
+                    {name}
+                    <button
+                      type="button"
+                      onClick={() => togglePreferredSupplier(name)}
+                      aria-label={`Retirer ${name}`}
+                      className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Utilisés pour l'onglet Ozego.</p>
+          </div>
         </div>
       </div>
 
@@ -727,6 +891,49 @@ function ProspectComparison() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display text-lg">Comparatif Ozego</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Sur {ozegoAnalysis.matched} ligne(s) rattachée(s) à un identifiant Ozego —
+                {ozegoAnalysis.unmatched > 0
+                  ? ` ${ozegoAnalysis.unmatched} sans identifiant Ozego.`
+                  : " toutes les lignes rapprochées en ont un."}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <SummaryCard
+                  label="Même fournisseur (facture)"
+                  value={euro(ozegoAnalysis.sameSupplierTotal)}
+                  hint={`${ozegoAnalysis.sameSupplierCount} ligne(s) trouvée(s) chez Ozego`}
+                />
+                <SummaryCard
+                  label="Moins cher — tous fournisseurs"
+                  value={euro(ozegoAnalysis.best)}
+                  hint={
+                    ozegoAnalysis.savingPercent === null
+                      ? undefined
+                      : `écart ${percent(ozegoAnalysis.savingPercent)}`
+                  }
+                  tone={ozegoAnalysis.saving >= 0 ? "good" : "bad"}
+                />
+                <SummaryCard
+                  label="Moins cher — fournisseurs préférés"
+                  value={euro(ozegoAnalysis.preferredTotal)}
+                  hint={
+                    preferredSuppliers.length === 0
+                      ? "aucun fournisseur préféré défini"
+                      : `${ozegoAnalysis.preferredCount} ligne(s) trouvée(s)`
+                  }
+                />
+              </div>
+              <Button variant="outline" onClick={() => void exportOzegoAnalysis()}>
+                Exporter le comparatif Ozego en Excel
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       ) : null}
 

@@ -20,7 +20,7 @@ dist-ssr
 .wrangler/
 .dev.vars
 
-# Tesseract OCR trained-language cache (downloaded on first use)
+# Local embedding model weights (@huggingface/transformers, downloaded on first use)
 .cache/
 
 # Editor directories and files
@@ -36,3 +36,7 @@ dist-ssr
 
 # Secrets
 .env
+
+# Supabase CLI local dev state
+supabase/.branches
+supabase/.temp

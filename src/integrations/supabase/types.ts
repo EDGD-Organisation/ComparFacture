@@ -1,13 +1,51 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15";
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
   public: {
     Tables: {
+      app_secrets: {
+        Row: {
+          erp_api_key: string | null;
+          id: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          erp_api_key?: string | null;
+          id?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          erp_api_key?: string | null;
+          id?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       app_settings: {
         Row: {
           auto_confirm_score: number;
@@ -314,6 +352,7 @@ export type Database = {
           id: string;
           name: string;
           notes: string | null;
+          preferred_suppliers: string[];
           status: string;
           updated_at: string;
         };
@@ -323,6 +362,7 @@ export type Database = {
           id?: string;
           name: string;
           notes?: string | null;
+          preferred_suppliers?: string[];
           status?: string;
           updated_at?: string;
         };
@@ -332,6 +372,7 @@ export type Database = {
           id?: string;
           name?: string;
           notes?: string | null;
+          preferred_suppliers?: string[];
           status?: string;
           updated_at?: string;
         };
@@ -366,6 +407,20 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      catalog_variants_by_ozego: {
+        Args: { ids: string[] };
+        Returns: {
+          ean: string;
+          family: string;
+          id: string;
+          label: string;
+          ozego_id: string;
+          price: number;
+          reference: string;
+          supplier_name: string;
+          unit: string;
+        }[];
+      };
       cheapest_by_ozego: {
         Args: { ids: string[] };
         Returns: {
@@ -379,6 +434,12 @@ export type Database = {
           supplier_name: string;
           unit: string;
           variants_count: number;
+        }[];
+      };
+      distinct_catalog_suppliers: {
+        Args: never;
+        Returns: {
+          supplier_name: string;
         }[];
       };
       match_catalog_embedding: {
@@ -528,6 +589,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
