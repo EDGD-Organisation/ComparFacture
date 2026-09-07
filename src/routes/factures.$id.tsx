@@ -14,7 +14,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { rematchInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
 import { comparableUnitPrice } from "@/lib/pack";
-import { fetchCheapestByOzego, ozegoGap, type OzegoBest } from "@/lib/ozego";
+import {
+  cheapestAmong,
+  fetchCheapestByOzego,
+  fetchOzegoVariants,
+  ozegoGap,
+  type OzegoBest,
+  type OzegoVariant,
+} from "@/lib/ozego";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/factures/$id")({
@@ -70,7 +77,9 @@ function InvoiceDetail() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
   const [picking, setPicking] = useState<Line | null>(null);
-  const [mode, setMode] = useState<"fournisseur" | "ozego" | "recap">("recap");
+  const [mode, setMode] = useState<
+    "fournisseur" | "ozego" | "recap" | "achat" | "ozego-meme" | "ozego-preferes"
+  >("recap");
   const rematch = useServerFn(rematchInvoice);
 
   const invoiceQuery = useQuery({
@@ -116,6 +125,27 @@ function InvoiceDetail() {
     queryKey: ["ozego-best", [...new Set(ozegoIds)].sort().join(",")],
     enabled: ozegoIds.length > 0,
     queryFn: () => fetchCheapestByOzego(ozegoIds),
+  });
+
+  const ozegoVariantsQuery = useQuery({
+    queryKey: ["ozego-variants", [...new Set(ozegoIds)].sort().join(",")],
+    enabled: ozegoIds.length > 0,
+    queryFn: () => fetchOzegoVariants(ozegoIds),
+  });
+
+  const prospectId = invoiceQuery.data?.prospect_id;
+  const preferredSuppliersQuery = useQuery({
+    queryKey: ["prospect-preferred-suppliers", prospectId],
+    enabled: Boolean(prospectId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prospects")
+        .select("preferred_suppliers")
+        .eq("id", prospectId!)
+        .single();
+      if (error) throw new Error(error.message);
+      return data.preferred_suppliers ?? [];
+    },
   });
 
   const relaunch = useMutation({
@@ -299,6 +329,54 @@ function InvoiceDetail() {
       return acc;
     },
     { invoicedTotal: 0, catalogTotal: 0, bestTotal: 0 },
+  );
+
+  const variantsByOzego: Map<string, OzegoVariant[]> = ozegoVariantsQuery.data ?? new Map();
+  const preferredSuppliers = preferredSuppliersQuery.data ?? [];
+  const invoiceSupplier = invoice?.supplier_name || invoice?.file_name || null;
+
+  function sameSupplierRowFor(line: Line) {
+    const ozegoId = line.catalog_products?.ozego_id ?? null;
+    const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
+    return cheapestAmong(variants, invoiceSupplier ? [invoiceSupplier] : null);
+  }
+
+  function preferredRowFor(line: Line) {
+    const ozegoId = line.catalog_products?.ozego_id ?? null;
+    const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
+    return cheapestAmong(variants, preferredSuppliers);
+  }
+
+  const sameSupplierTotals = lines.reduce(
+    (acc, line) => {
+      const row = sameSupplierRowFor(line);
+      const gap = ozegoGap(line, row);
+      if (gap) {
+        acc.total += gap.totalGap;
+        acc.bestTotal += (row?.price ?? 0) * line.quantity * gap.packFactor;
+        if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
+      } else {
+        acc.unmatched += 1;
+      }
+      return acc;
+    },
+    { total: 0, bestTotal: 0, anomalies: 0, unmatched: 0 },
+  );
+
+  const preferredTotals = lines.reduce(
+    (acc, line) => {
+      const row = preferredRowFor(line);
+      const gap = ozegoGap(line, row);
+      if (gap) {
+        acc.total += gap.totalGap;
+        acc.bestTotal += (row?.price ?? 0) * line.quantity * gap.packFactor;
+        if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
+      } else {
+        acc.unmatched += 1;
+      }
+      return acc;
+    },
+    { total: 0, bestTotal: 0, anomalies: 0, unmatched: 0 },
   );
 
   async function exportExcel() {
@@ -605,23 +683,25 @@ function InvoiceDetail() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() =>
-              void (mode === "ozego"
-                ? exportOzegoExcel()
+          {mode === "ozego" || mode === "recap" || mode === "fournisseur" ? (
+            <Button
+              variant="outline"
+              onClick={() =>
+                void (mode === "ozego"
+                  ? exportOzegoExcel()
+                  : mode === "recap"
+                    ? exportRecapExcel()
+                    : exportExcel())
+              }
+            >
+              <Download className="size-4" />
+              {mode === "ozego"
+                ? "Exporter le comparatif Ozego"
                 : mode === "recap"
-                  ? exportRecapExcel()
-                  : exportExcel())
-            }
-          >
-            <Download className="size-4" />
-            {mode === "ozego"
-              ? "Exporter le comparatif Ozego"
-              : mode === "recap"
-                ? "Exporter le récapitulatif"
-                : "Exporter le comparatif fournisseur"}
-          </Button>
+                  ? "Exporter le récapitulatif"
+                  : "Exporter le comparatif fournisseur"}
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             disabled={relaunch.isPending}
@@ -637,7 +717,16 @@ function InvoiceDetail() {
         </div>
       </div>
 
-      <div className="mb-6 inline-flex rounded-lg border border-border bg-muted/40 p-1">
+      <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1">
+        <button
+          type="button"
+          onClick={() => setMode("achat")}
+          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+            mode === "achat" ? "bg-background shadow-sm" : "text-muted-foreground"
+          }`}
+        >
+          Achat client
+        </button>
         <button
           type="button"
           onClick={() => setMode("recap")}
@@ -658,12 +747,30 @@ function InvoiceDetail() {
         </button>
         <button
           type="button"
+          onClick={() => setMode("ozego-meme")}
+          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+            mode === "ozego-meme" ? "bg-background shadow-sm" : "text-muted-foreground"
+          }`}
+        >
+          Ozego · Même fournisseur
+        </button>
+        <button
+          type="button"
           onClick={() => setMode("ozego")}
           className={`rounded-md px-4 py-2 text-sm font-medium transition ${
             mode === "ozego" ? "bg-background shadow-sm" : "text-muted-foreground"
           }`}
         >
-          Comparatif identifiant Ozego
+          Ozego · Autres fournisseurs (moins cher)
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("ozego-preferes")}
+          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+            mode === "ozego-preferes" ? "bg-background shadow-sm" : "text-muted-foreground"
+          }`}
+        >
+          Ozego · Fournisseurs préférés
         </button>
       </div>
 
@@ -871,31 +978,16 @@ function InvoiceDetail() {
             </CardContent>
           </Card>
         </>
-      ) : mode === "ozego" ? (
+      ) : mode === "achat" ? (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-3">
-            <StatCard
-              label="Écart vs meilleur prix Ozego"
-              value={euro(ozegoTotals.total)}
-              tone={ozegoTotals.total > 0 ? "bad" : "good"}
-            />
-            <StatCard
-              label="Lignes hors tolérance"
-              value={String(ozegoTotals.anomalies)}
-              tone={ozegoTotals.anomalies ? "warn" : "good"}
-            />
-            <StatCard
-              label="Lignes sans identifiant Ozego"
-              value={String(ozegoTotals.unmatched)}
-              tone={ozegoTotals.unmatched ? "warn" : "good"}
-            />
+          <div className="mb-6 grid gap-4 sm:grid-cols-2">
+            <StatCard label="Total facturé" value={euro(invoicedTotal)} tone="good" />
+            <StatCard label="Lignes" value={String(lines.length)} tone="good" />
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-display text-lg">
-                Meilleur prix par identifiant Ozego
-              </CardTitle>
+              <CardTitle className="font-display text-lg">Achat client</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -903,166 +995,49 @@ function InvoiceDetail() {
                   <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium">Ligne facture</th>
-                      <th className="px-4 py-3 font-medium">Identifiant Ozego</th>
-                      <th className="px-4 py-3 font-medium">Référence la moins chère</th>
                       <th className="px-4 py-3 text-right font-medium">Qté</th>
+                      <th className="px-4 py-3 font-medium">Unité</th>
                       <th className="px-4 py-3 text-right font-medium">PU facturé</th>
-                      <th className="px-4 py-3 text-right font-medium">Cond.</th>
-                      <th className="px-4 py-3 text-right font-medium">PU comparable</th>
-                      <th className="px-4 py-3 text-right font-medium">Meilleur PU</th>
-
-                      <th className="px-4 py-3 text-right font-medium">Écart</th>
-                      <th className="px-4 py-3 text-right font-medium">Action</th>
+                      <th className="px-4 py-3 text-right font-medium">Remise %</th>
+                      <th className="px-4 py-3 text-right font-medium">Total ligne</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {lines.map((line) => {
-                      const ozegoId = line.catalog_products?.ozego_id ?? null;
-                      const best = ozegoId ? bestByOzego.get(ozegoId) : undefined;
-                      const gap = ozegoGap(line, best);
-                      const out = gap && Math.abs(gap.percentGap ?? 0) > tolerance;
-                      return (
-                        <tr key={line.id} className={out ? "bg-destructive/5" : undefined}>
-                          <td className="px-4 py-3">
-                            <span className="block font-medium">{line.label}</span>
-                            <span className="block font-mono text-xs text-muted-foreground">
-                              {line.supplier_reference || "sans référence"}
+                    {lines.map((line) => (
+                      <tr key={line.id}>
+                        <td className="px-4 py-3">
+                          <span className="block font-medium">{line.label}</span>
+                          <span className="block font-mono text-xs text-muted-foreground">
+                            {line.supplier_reference || "sans référence"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {line.quantity}
+                          {(line.pack_factor ?? 1) !== 1 ? (
+                            <span className="block text-xs text-muted-foreground">
+                              cond. ×{line.pack_factor}
                             </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            {ozegoId ? (
-                              <>
-                                <span className="block font-mono text-xs">{ozegoId}</span>
-                                <span className="block text-xs text-muted-foreground">
-                                  {best ? `${best.variants_count} référence(s)` : "aucun prix"}
-                                </span>
-                              </>
-                            ) : (
-                              <Badge
-                                variant="secondary"
-                                className="bg-warning/20 text-warning-foreground"
-                              >
-                                Sans identifiant
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {best ? (
-                              <>
-                                <span className="block">{best.label}</span>
-                                <span className="block font-mono text-xs text-muted-foreground">
-                                  {best.reference}
-                                  {best.supplier_name ? ` · ${best.supplier_name}` : ""}
-                                </span>
-                              </>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <EditableCell
-                                value={line.quantity}
-                                title="Quantité facturée"
-                                className="w-20"
-                                onSave={(value) =>
-                                  void saveLineField(line, { quantity: Number(value) })
-                                }
-                              />
-                              <EditableText
-                                value={line.unit ?? ""}
-                                title="Unité facturée (kg, carton, L…)"
-                                className="w-16"
-                                onSave={(value) =>
-                                  void saveLineField(line, { unit: value || null })
-                                }
-                              />
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <EditableCell
-                              value={line.unit_price}
-                              title="Prix unitaire facturé"
-                              className="ml-auto w-24"
-                              onSave={(value) => void saveLineField(line, { unit_price: value })}
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <PackFactorInput
-                              value={line.pack_factor ?? 1}
-                              onSave={(value) => void savePackFactor(line, value)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            {euro(comparableUnitPrice(line.unit_price, line.pack_factor))}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                            {euro(best?.price ?? null)}
-                          </td>
-
-                          <td
-                            className={`px-4 py-3 text-right font-medium tabular-nums ${
-                              !gap
-                                ? "text-muted-foreground"
-                                : gap.unitGap > 0
-                                  ? "text-destructive"
-                                  : gap.unitGap < 0
-                                    ? "text-success"
-                                    : ""
-                            }`}
-                          >
-                            {gap ? (
-                              <>
-                                <span className="block">{euro(gap.totalGap)}</span>
-                                <span className="block text-xs">{percent(gap.percentGap)}</span>
-                              </>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Modifier la correspondance"
-                                onClick={() => setPicking(line)}
-                              >
-                                <Pencil className="size-4" />
-                              </Button>
-                              {line.catalog_products ? (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Retirer la correspondance"
-                                  onClick={() => void applyMatch(line, null)}
-                                >
-                                  <X className="size-4 text-destructive" />
-                                </Button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3">{line.unit || "—"}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {euro(line.unit_price)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {line.discount_percent ? percent(line.discount_percent) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">
+                          {euro(line.line_total ?? (line.unit_price ?? 0) * line.quantity)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                   <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
                     <tr>
-                      <td className="px-4 py-3" colSpan={4}>
+                      <td className="px-4 py-3" colSpan={5}>
                         Total
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
-                      <td className="px-4 py-3" />
-                      <td className="px-4 py-3" />
-                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                        {euro(bestTotal)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums ${ozegoTotals.total > 0 ? "text-destructive" : ozegoTotals.total < 0 ? "text-success" : ""}`}
-                      >
-                        {euro(ozegoTotals.total)}
-                      </td>
-                      <td className="px-4 py-3" />
                     </tr>
                   </tfoot>
                 </table>
@@ -1075,6 +1050,61 @@ function InvoiceDetail() {
             </CardContent>
           </Card>
         </>
+      ) : mode === "ozego-meme" ? (
+        <OzegoComparisonTable
+          lines={lines}
+          cardTitle={`Prix le moins cher chez ${invoiceSupplier ?? "ce fournisseur"}`}
+          referenceColumnLabel="Référence même fournisseur"
+          unmatchedLabel="Lignes sans offre chez ce fournisseur"
+          statLabel="Écart vs Ozego même fournisseur"
+          rowFor={sameSupplierRowFor}
+          totals={sameSupplierTotals}
+          invoicedTotal={invoicedTotal}
+          tolerance={tolerance}
+          onSaveLineField={(line, patch) => void saveLineField(line, patch)}
+          onSavePackFactor={(line, value) => void savePackFactor(line, value)}
+          onPick={setPicking}
+          onUnmatch={(line) => void applyMatch(line, null)}
+        />
+      ) : mode === "ozego" ? (
+        <OzegoComparisonTable
+          lines={lines}
+          cardTitle="Meilleur prix par identifiant Ozego"
+          referenceColumnLabel="Référence la moins chère"
+          unmatchedLabel="Lignes sans identifiant Ozego"
+          statLabel="Écart vs meilleur prix Ozego"
+          rowFor={(line) => {
+            const ozegoId = line.catalog_products?.ozego_id ?? null;
+            return ozegoId ? bestByOzego.get(ozegoId) : undefined;
+          }}
+          totals={{ ...ozegoTotals, bestTotal }}
+          invoicedTotal={invoicedTotal}
+          tolerance={tolerance}
+          onSaveLineField={(line, patch) => void saveLineField(line, patch)}
+          onSavePackFactor={(line, value) => void savePackFactor(line, value)}
+          onPick={setPicking}
+          onUnmatch={(line) => void applyMatch(line, null)}
+        />
+      ) : mode === "ozego-preferes" ? (
+        <OzegoComparisonTable
+          lines={lines}
+          cardTitle="Meilleur prix chez vos fournisseurs préférés"
+          referenceColumnLabel="Référence fournisseur préféré"
+          unmatchedLabel={
+            preferredSuppliers.length === 0
+              ? "Aucun fournisseur préféré défini"
+              : "Lignes sans offre préférée"
+          }
+          statLabel="Écart vs Ozego fournisseurs préférés"
+          rowFor={preferredRowFor}
+          totals={preferredTotals}
+          invoicedTotal={invoicedTotal}
+          tolerance={tolerance}
+          onSaveLineField={(line, patch) => void saveLineField(line, patch)}
+          onSavePackFactor={(line, value) => void savePackFactor(line, value)}
+          onPick={setPicking}
+          onUnmatch={(line) => void applyMatch(line, null)}
+        />
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
@@ -1402,6 +1432,244 @@ function MatchBadge({ line }: { line: Line }) {
       {line.match_method ?? "auto"}
       {line.match_score !== null ? ` ${Math.round(line.match_score * 100)} %` : ""}
     </Badge>
+  );
+}
+
+type OzegoRow = {
+  label: string;
+  reference: string;
+  supplier_name: string | null;
+  price: number | null;
+};
+
+/**
+ * Shared table for the 3 Ozego comparison views (même fournisseur / tous fournisseurs
+ * moins cher / fournisseurs préférés) — same columns and edit actions, only `rowFor`
+ * (which reference price to compare against) and the surrounding labels differ.
+ */
+function OzegoComparisonTable({
+  lines,
+  cardTitle,
+  referenceColumnLabel,
+  unmatchedLabel,
+  statLabel,
+  rowFor,
+  totals,
+  invoicedTotal,
+  tolerance,
+  onSaveLineField,
+  onSavePackFactor,
+  onPick,
+  onUnmatch,
+}: {
+  lines: Line[];
+  cardTitle: string;
+  referenceColumnLabel: string;
+  unmatchedLabel: string;
+  statLabel: string;
+  rowFor: (line: Line) => OzegoRow | undefined;
+  totals: { total: number; bestTotal: number; anomalies: number; unmatched: number };
+  invoicedTotal: number;
+  tolerance: number;
+  onSaveLineField: (
+    line: Line,
+    patch: Partial<Pick<Line, "quantity" | "unit" | "unit_price">>,
+  ) => void;
+  onSavePackFactor: (line: Line, value: number) => void;
+  onPick: (line: Line) => void;
+  onUnmatch: (line: Line) => void;
+}) {
+  return (
+    <>
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label={statLabel}
+          value={euro(totals.total)}
+          tone={totals.total > 0 ? "bad" : "good"}
+        />
+        <StatCard
+          label="Lignes hors tolérance"
+          value={String(totals.anomalies)}
+          tone={totals.anomalies ? "warn" : "good"}
+        />
+        <StatCard
+          label={unmatchedLabel}
+          value={String(totals.unmatched)}
+          tone={totals.unmatched ? "warn" : "good"}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display text-lg">{cardTitle}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Ligne facture</th>
+                  <th className="px-4 py-3 font-medium">Identifiant Ozego</th>
+                  <th className="px-4 py-3 font-medium">{referenceColumnLabel}</th>
+                  <th className="px-4 py-3 text-right font-medium">Qté</th>
+                  <th className="px-4 py-3 text-right font-medium">PU facturé</th>
+                  <th className="px-4 py-3 text-right font-medium">Cond.</th>
+                  <th className="px-4 py-3 text-right font-medium">PU comparable</th>
+                  <th className="px-4 py-3 text-right font-medium">PU référence</th>
+                  <th className="px-4 py-3 text-right font-medium">Écart</th>
+                  <th className="px-4 py-3 text-right font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {lines.map((line) => {
+                  const ozegoId = line.catalog_products?.ozego_id ?? null;
+                  const row = rowFor(line);
+                  const gap = ozegoGap(line, row);
+                  const out = gap && Math.abs(gap.percentGap ?? 0) > tolerance;
+                  return (
+                    <tr key={line.id} className={out ? "bg-destructive/5" : undefined}>
+                      <td className="px-4 py-3">
+                        <span className="block font-medium">{line.label}</span>
+                        <span className="block font-mono text-xs text-muted-foreground">
+                          {line.supplier_reference || "sans référence"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {ozegoId ? (
+                          <span className="block font-mono text-xs">{ozegoId}</span>
+                        ) : (
+                          <Badge
+                            variant="secondary"
+                            className="bg-warning/20 text-warning-foreground"
+                          >
+                            Sans identifiant
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {row ? (
+                          <>
+                            <span className="block">{row.label}</span>
+                            <span className="block font-mono text-xs text-muted-foreground">
+                              {row.reference}
+                              {row.supplier_name ? ` · ${row.supplier_name}` : ""}
+                            </span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <EditableCell
+                            value={line.quantity}
+                            title="Quantité facturée"
+                            className="w-20"
+                            onSave={(value) => onSaveLineField(line, { quantity: Number(value) })}
+                          />
+                          <EditableText
+                            value={line.unit ?? ""}
+                            title="Unité facturée (kg, carton, L…)"
+                            className="w-16"
+                            onSave={(value) => onSaveLineField(line, { unit: value || null })}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <EditableCell
+                          value={line.unit_price}
+                          title="Prix unitaire facturé"
+                          className="ml-auto w-24"
+                          onSave={(value) => onSaveLineField(line, { unit_price: value })}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <PackFactorInput
+                          value={line.pack_factor ?? 1}
+                          onSave={(value) => onSavePackFactor(line, value)}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {euro(comparableUnitPrice(line.unit_price, line.pack_factor))}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                        {euro(row?.price ?? null)}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right font-medium tabular-nums ${
+                          !gap
+                            ? "text-muted-foreground"
+                            : gap.unitGap > 0
+                              ? "text-destructive"
+                              : gap.unitGap < 0
+                                ? "text-success"
+                                : ""
+                        }`}
+                      >
+                        {gap ? (
+                          <>
+                            <span className="block">{euro(gap.totalGap)}</span>
+                            <span className="block text-xs">{percent(gap.percentGap)}</span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Modifier la correspondance"
+                            onClick={() => onPick(line)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          {line.catalog_products ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Retirer la correspondance"
+                              onClick={() => onUnmatch(line)}
+                            >
+                              <X className="size-4 text-destructive" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
+                <tr>
+                  <td className="px-4 py-3" colSpan={4}>
+                    Total
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
+                  <td className="px-4 py-3" />
+                  <td className="px-4 py-3" />
+                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                    {euro(totals.bestTotal)}
+                  </td>
+                  <td
+                    className={`px-4 py-3 text-right tabular-nums ${totals.total > 0 ? "text-destructive" : totals.total < 0 ? "text-success" : ""}`}
+                  >
+                    {euro(totals.total)}
+                  </td>
+                  <td className="px-4 py-3" />
+                </tr>
+              </tfoot>
+            </table>
+            {lines.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-muted-foreground">
+                Aucune ligne extraite pour cette facture.
+              </p>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
