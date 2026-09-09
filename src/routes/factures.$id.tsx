@@ -1057,6 +1057,7 @@ function InvoiceDetail() {
           referenceColumnLabel="Référence même fournisseur"
           unmatchedLabel="Lignes sans offre chez ce fournisseur"
           statLabel="Écart vs Ozego même fournisseur"
+          noOfferLabel="Hors Mercurial"
           rowFor={sameSupplierRowFor}
           totals={sameSupplierTotals}
           invoicedTotal={invoicedTotal}
@@ -1453,6 +1454,7 @@ function OzegoComparisonTable({
   referenceColumnLabel,
   unmatchedLabel,
   statLabel,
+  noOfferLabel = "—",
   rowFor,
   totals,
   invoicedTotal,
@@ -1467,6 +1469,11 @@ function OzegoComparisonTable({
   referenceColumnLabel: string;
   unmatchedLabel: string;
   statLabel: string;
+  /** Shown in the reference column when the product has an Ozego group but this
+   * supplier scope carries no variant for it (as opposed to no Ozego group at all,
+   * which keeps the "Sans identifiant" badge) — e.g. "Hors Mercurial" for the
+   * "même fournisseur" view, meaning the product isn't in that supplier's price list. */
+  noOfferLabel?: string;
   rowFor: (line: Line) => OzegoRow | undefined;
   totals: { total: number; bestTotal: number; anomalies: number; unmatched: number };
   invoicedTotal: number;
@@ -1555,6 +1562,10 @@ function OzegoComparisonTable({
                               {row.supplier_name ? ` · ${row.supplier_name}` : ""}
                             </span>
                           </>
+                        ) : ozegoId ? (
+                          <span className="text-xs italic text-muted-foreground">
+                            {noOfferLabel}
+                          </span>
                         ) : (
                           "—"
                         )}

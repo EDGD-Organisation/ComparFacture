@@ -207,7 +207,17 @@ export async function matchLines(
     let best: { candidate: Candidate; score: number } | null = null;
     for (const candidate of map.values()) {
       const lexical = Math.min(candidate.lexical, 1);
-      const semantic = Math.min(candidate.semantic, 1);
+      // A high semantic score with zero lexical corroboration (search_catalog's trigram/ILIKE
+      // found no textual overlap at all) is this app's small local embedding model's classic
+      // false-positive signature on short, generic French labels — confirmed on real data:
+      // "persil coupe 1kg" scored 92% similar to both "fumet de poisson 1kg" and "cèpes en
+      // morceaux 1kg" (lexical=0 for both), which outscored the real match "Persil Frisé"
+      // (lexical=0.29) and got silently attached as matched_product_id. Every validated
+      // genuine reformulation on record (steak haché, rôti de porc, thé vert menthe) already
+      // has lexical > 0, so this penalty only ever discounts the isolated/false-positive case.
+      const SEMANTIC_ISOLATION_PENALTY = 0.15;
+      const semanticRaw = Math.min(candidate.semantic, 1);
+      const semantic = lexical > 0 ? semanticRaw : semanticRaw * SEMANTIC_ISOLATION_PENALTY;
       const tokens = tokenScore(line.label, candidate.label);
       const base =
         0.35 * Math.max(lexical, semantic) + 0.2 * Math.min(lexical, semantic) + 0.45 * tokens;

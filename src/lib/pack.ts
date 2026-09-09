@@ -7,6 +7,11 @@ export function derivePackFactor(label: string | null, unit: string | null): num
 
   const patterns: RegExp[] = [
     /(?:colis|carton|caisse|boite|boîte|lot|pack|paquet|bte|cs)\s*(?:de\s*)?(\d{1,4})\b/,
+    // Poids × nombre de pièces collé sans espace, ex. "75gx48q", "40gx27q" (courant sur les
+    // étiquettes fournisseurs). Il n'y a pas de frontière de mot entre l'unité de poids et le
+    // "x" (ex. "gx"), donc les motifs \bx\b ci-dessous ne l'attrapent jamais — confirmé sur des
+    // lignes réelles où ça laissait le coefficient à 1 et faussait l'écart de plusieurs milliers %.
+    /\d+(?:\.\d+)?\s*(?:kg|g|l|cl|ml)\s*x\s*(\d{1,4})\s*q?\b/,
     /\b(?:x|\*)\s*(\d{1,4})\b/,
     /\b(\d{1,4})\s*(?:x|\*)\b/,
     /\b(\d{1,4})\s*(?:pi[eè]ces?|pcs?|un(?:it[eé]s?)?)\b/,
