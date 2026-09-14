@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { euro } from "@/lib/format";
+import { stripAccents } from "@/lib/match-normalize";
 
 export type PickedProduct = { id: string; reference: string; label: string; price: number | null };
 
@@ -38,8 +39,14 @@ export function ProductPicker({
         .select("id, reference, label, price, unit, family")
         .limit(30);
       if (search.trim()) {
-        const term = `%${search.trim()}%`;
-        query = query.or(`reference.ilike.${term},label.ilike.${term},ean.ilike.${term}`);
+        const raw = search.trim();
+        const term = `%${raw}%`;
+        // label_unaccent so "ECHALOTE" (typed without the accent) still finds "Échalote" —
+        // ILIKE folds case but never accents. reference/ean are codes, not accented text.
+        const unaccentTerm = `%${stripAccents(raw)}%`;
+        query = query.or(
+          `reference.ilike.${term},label_unaccent.ilike.${unaccentTerm},ean.ilike.${term}`,
+        );
       }
       const { data, error } = await query;
       if (error) throw new Error(error.message);

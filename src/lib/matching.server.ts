@@ -166,7 +166,15 @@ export async function matchLines(
   if ((count ?? 0) > 0) {
     let vectors: number[][] = [];
     try {
-      vectors = await embedTexts(pending.map((index) => normalizeLabel(lines[index]!.label)));
+      // batchSize 1: see embedTexts' doc comment — this model's dynamic quantization
+      // makes a text's embedding depend on which other texts share its batch, which
+      // silently corrupted ranking here (confirmed on a real invoice: "batavia x 12
+      // local c1" found 5 real "Batavia" catalog matches embedded alone, zero when
+      // batched with the invoice's other lines).
+      vectors = await embedTexts(
+        pending.map((index) => normalizeLabel(lines[index]!.label)),
+        1,
+      );
     } catch {
       vectors = [];
     }
@@ -229,7 +237,17 @@ export async function matchLines(
       if (!best || clamped > best.score) best = { candidate, score: clamped };
     }
 
-    if (!best || best.score <= 0.2) continue;
+    // Floor below which we'd rather show nothing than a guess: analysis of a real
+    // fruits/légumes invoice found this score band mixes genuinely correct short-label
+    // matches (Coriandre 0.27, Kiwi 0.28, Aubergine 0.31-0.33) with completely unrelated
+    // ones (Tomate → Lessive poudre 0.26, Cranberry → Rôti Veau 0.21, Carotte → Pâté de
+    // Campagne 0.33) — score alone can't reliably separate them here (short catalog
+    // labels like "Aubergine" structurally cap lexical similarity regardless of
+    // correctness). Raising this floor trades away some correct low-confidence
+    // auto-suggestions for suppressing the clearly-wrong ones, which a still-empty
+    // `catalog_products.family` (the ERP feed never sends it) can't do more precisely.
+    const MIN_SUGGESTION_SCORE = 0.35;
+    if (!best || best.score < MIN_SUGGESTION_SCORE) continue;
     results[index] = {
       matched_product_id: best.candidate.id,
       match_score: best.score,

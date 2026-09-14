@@ -1174,14 +1174,36 @@ function InvoiceDetail() {
                                     {line.catalog_products.reference}
                                     <MatchBadge line={line} />
                                   </span>
+                                  {line.match_method !== "reference" ? (
+                                    <span className="block text-xs text-warning-foreground">
+                                      Pas rapproché par la référence fournisseur (
+                                      {line.match_method === "mapping"
+                                        ? "correspondance mémorisée"
+                                        : "libellé"}
+                                      )
+                                    </span>
+                                  ) : null}
                                 </>
                               ) : (
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-warning/20 text-warning-foreground"
-                                >
-                                  À rapprocher
-                                </Badge>
+                                <div className="flex flex-col items-start gap-1">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-warning/20 text-warning-foreground"
+                                  >
+                                    À rapprocher
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {line.supplier_reference ? (
+                                      <>
+                                        Référence{" "}
+                                        <span className="font-mono">{line.supplier_reference}</span>{" "}
+                                        introuvable dans notre base
+                                      </>
+                                    ) : (
+                                      "Aucune référence fournisseur communiquée"
+                                    )}
+                                  </span>
+                                </div>
                               )}
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -1537,8 +1559,9 @@ function OzegoComparisonTable({
                     <tr key={line.id} className={out ? "bg-destructive/5" : undefined}>
                       <td className="px-4 py-3">
                         <span className="block font-medium">{line.label}</span>
-                        <span className="block font-mono text-xs text-muted-foreground">
+                        <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
                           {line.supplier_reference || "sans référence"}
+                          {line.catalog_products ? <MatchBadge line={line} /> : null}
                         </span>
                       </td>
                       <td className="px-4 py-3">

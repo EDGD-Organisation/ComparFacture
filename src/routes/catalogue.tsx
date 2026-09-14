@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { syncCatalogFromErp } from "@/lib/catalog.functions";
 import { euro, shortDate } from "@/lib/format";
+import { stripAccents } from "@/lib/match-normalize";
 
 export const Route = createFileRoute("/catalogue")({
   head: () => ({
@@ -48,9 +49,13 @@ function CatalogPage() {
         .order("updated_at", { ascending: false })
         .limit(100);
       if (search.trim()) {
-        const term = `%${search.trim()}%`;
+        const raw = search.trim();
+        const term = `%${raw}%`;
+        // label_unaccent so "ECHALOTE" (typed without the accent) still finds "Échalote" —
+        // ILIKE folds case but never accents. reference/ean/ozego_id are codes, not accented text.
+        const unaccentTerm = `%${stripAccents(raw)}%`;
         query = query.or(
-          `reference.ilike.${term},label.ilike.${term},ean.ilike.${term},ozego_id.ilike.${term}`,
+          `reference.ilike.${term},label_unaccent.ilike.${unaccentTerm},ean.ilike.${term},ozego_id.ilike.${term}`,
         );
       }
       const { data, error } = await query;

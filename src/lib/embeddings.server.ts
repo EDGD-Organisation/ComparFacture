@@ -29,11 +29,20 @@ function getExtractor(): Promise<FeatureExtractionPipeline> {
  * Local replacement for the Lovable AI Gateway embedding call — runs entirely
  * in-process (ONNX Runtime via @huggingface/transformers), no network call, no
  * API key. Batches to keep peak memory bounded on large catalog syncs.
+ *
+ * `batchSize` defaults to 32 for throughput on bulk catalog syncs, but callers whose
+ * ranking depends on getting the *same* embedding for the *same* text regardless of what
+ * else is being embedded alongside it (i.e. matching.server.ts, scoring one invoice's
+ * lines against each other) MUST pass 1. Confirmed on real data: this model's dynamic
+ * int8 quantization (`dtype: "q8"`) computes its quantization scale per batch, so the
+ * identical string embedded alongside different texts can land in a measurably different
+ * vector (cosine ~0.997, not 1.0) — enough to flip which catalog products rank in the
+ * top-8 nearest neighbors. This is a known ONNX Runtime dynamic-quantization behavior,
+ * not a padding/attention-mask bug — batch size 1 sidesteps it by construction.
  */
-export async function embedTexts(texts: string[]): Promise<number[][]> {
+export async function embedTexts(texts: string[], batchSize = 32): Promise<number[][]> {
   const extractor = await getExtractor();
   const out: number[][] = [];
-  const batchSize = 32;
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts
       .slice(i, i + batchSize)
