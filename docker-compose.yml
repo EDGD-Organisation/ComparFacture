@@ -9,7 +9,7 @@ services:
       - web
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.comparfacture.rule=Host(`comparfacture.siperizer.com`)"
+      - "traefik.http.routers.comparfacture.rule=Host(`comparatif.edgdconseil-pilotage.fr`)"
       - "traefik.http.routers.comparfacture.entrypoints=websecure"
       - "traefik.http.routers.comparfacture.tls.certresolver=myresolver"
       - "traefik.http.services.comparfacture.loadbalancer.server.port=3000"
