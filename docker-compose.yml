@@ -1,0 +1,19 @@
+services:
+  comparfacture:
+    image: ghcr.io/edgd-organisation/comparfacture:latest
+    container_name: comparfacture
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.comparfacture.rule=Host(`comparfacture.siperizer.com`)"
+      - "traefik.http.routers.comparfacture.entrypoints=websecure"
+      - "traefik.http.routers.comparfacture.tls.certresolver=myresolver"
+      - "traefik.http.services.comparfacture.loadbalancer.server.port=3000"
+
+networks:
+  web:
+    external: true

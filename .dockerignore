@@ -1,0 +1,21 @@
+.git
+node_modules
+.output
+.vinxi
+.tanstack
+.nitro
+.cache
+.env
+.env.local
+*.local
+
+# Test fixtures and scratch files, not needed to build/run the app
+testfiles/
+testfiles-results.json
+multimodal-results.json
+ocr-results.json
+restructured-results.json
+structured-results.json
+Scan17-03-2026-131022.pdf
+comparatif-Montval factures Valifruitpdf.xlsx
+sysco 2.jpg
