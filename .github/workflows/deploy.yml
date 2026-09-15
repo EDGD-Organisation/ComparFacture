@@ -20,6 +20,8 @@ jobs:
           script: |
             set -e
             cd ~/comparfacture
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull
-            docker compose up -d
+            # ubuntu is not in the docker group on this VPS (deliberate, see
+            # Server Configuration.md 2026-07-02 audit) — passwordless sudo instead.
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            sudo docker compose pull
+            sudo docker compose up -d
