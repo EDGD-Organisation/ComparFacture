@@ -12,8 +12,11 @@ price gap versus catalog price and versus the cheapest known price for the same 
 for the original product spec (in French) — matching thresholds, table list, and out-of-scope
 items are defined there.
 
-Built with Lovable (lovable.dev) and Lovable Cloud (Supabase-based backend). This repo is not a
-git repository locally — there is no `.git` directory, so don't assume `git` commands work here.
+Built with Lovable (lovable.dev) and Lovable Cloud (Supabase-based backend). Hosted on GitHub at
+`EDGD-Organisation/ComparFacture`; feature branches are merged into `main` via pull request (the
+`develop` branch currently mirrors `main`). See [README.md](README.md) for a (French)
+setup/onboarding walkthrough aimed at new contributors — this file stays the deeper technical
+reference.
 
 ## Commands
 
@@ -214,7 +217,54 @@ primitives. All user-facing copy in this app is in French; keep new UI text cons
 ESLint (`eslint.config.js`) forbids importing the Next.js `server-only` package — this project
 uses the `*.server.ts` naming convention (or `@tanstack/react-start/server-only`) instead. Prettier
 is run through `eslint-plugin-prettier`, so `bun run lint` also enforces formatting
-(100-char width, double quotes, trailing commas — see `.prettierrc`).
+(100-char width, double quotes, trailing commas — see `.prettierrc`). `eslint.config.js` also
+ignores `src/integrations/supabase/**` entirely — that's the generated Lovable scaffolding (see
+"Two Supabase clients" above), not code maintained by hand here, so it isn't linted/formatted.
+
+## Deployment & CI/CD
+
+Production runs on a single VPS behind Traefik, deployed through three chained GitHub Actions
+workflows (`.github/workflows/`), all scoped to `main`:
+
+1. **`ci.yml`** — on push/PR to `main`: `tsc --noEmit`, `bun run lint`, then a full `bun run build`
+   (`NITRO_PRESET=node-server` plus the public `VITE_*` Supabase vars from repo/environment
+   variables — safe to expose since these are the publishable client-side values, not secrets).
+2. **`docker-publish.yml`** ("Build & Push Docker Image") — on push to `main`: builds the
+   `Dockerfile` image and pushes it to `ghcr.io/edgd-organisation/comparfacture` (tags `:latest`
+   and `:sha-<commit>`), baking the same public `VITE_*` vars in as build args. Service-role/API
+   secrets never go into the image — they're supplied at container runtime instead (see
+   `docker-compose.yml` below).
+3. **`deploy.yml`** — triggered by that workflow's completion (`workflow_run`), SSHes into the VPS
+   (`appleboy/ssh-action`, using `SERVER_HOST`/`SERVER_USER`/`SERVER_SSH_KEY` secrets) and runs
+   `sudo docker compose pull && sudo docker compose up -d` from `~/comparfacture`. `sudo` is
+   required because the deploy user (`ubuntu`) is deliberately not in the `docker` group on this
+   VPS — see the comment in `deploy.yml` for the audit reference; don't "fix" this by adding
+   `ubuntu` to the `docker` group.
+
+`Dockerfile` is a multi-stage Bun→Node build: dependencies and the TanStack Start/Vite build run in
+an `oven/bun:1` stage (native deps like `onnxruntime-node` and `sharp` must be resolved inside this
+Linux image, not copied in from a host build — see "Embeddings" above), then only the built
+`.output/` is copied into a slim `node:22-bookworm-slim` runtime stage. `NITRO_PRESET=node-server`
+is forced at build time because `@lovable.dev/vite-tanstack-config` otherwise targets Cloudflare
+Workers by default (see `vite.config.ts` note above). The runtime stage installs `libgomp1`
+(required by `onnxruntime-node` for local embeddings, see "Embeddings" above) and exposes a `/`
+healthcheck on port 3000.
+
+`vite.config.ts` aliases the `ws` package (`resolve.alias`) to `src/lib/ws-stub.ts`. `@google/genai`
+statically imports `ws` for its Node Live/streaming WebSocket transport, which this app never uses
+(`structure.server.ts` only makes plain `generateContent` REST calls) — but in production that
+import has intermittently ended up left as an unresolved runtime `import` (`Cannot find package
+'ws'` at startup) instead of being bundled, seemingly sensitive to how the build's dependency
+tracer treats `ws`'s optional native peer deps (`bufferutil`/`utf-8-validate`), and not reproducible
+on demand locally. Aliasing to a stub removes the real `ws` package from the server module graph
+entirely rather than chasing the bundler's externalization decision. If a feature ever needs the
+real Gemini Live API, this alias must be revisited first.
+
+`docker-compose.yml` on the VPS runs the published image behind an external Traefik reverse proxy
+(joins a pre-existing external `web` network) and terminates TLS for the production domain
+`comparatif.edgdconseil-pilotage.fr` (switched from an earlier domain in September 2026). Runtime
+env vars — `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, etc. — come from a `.env` file that lives
+on the host, outside this repo and outside version control.
 
 ## Lovable sync
 

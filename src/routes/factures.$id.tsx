@@ -1138,6 +1138,7 @@ function InvoiceDetail() {
                       <tr>
                         <th className="px-4 py-3 font-medium">Ligne facture</th>
                         <th className="px-4 py-3 font-medium">Produit catalogue</th>
+                        <th className="px-4 py-3 font-medium">Unité de négo + nom du fournisseur</th>
                         <th className="px-4 py-3 text-right font-medium">Qté</th>
                         <th className="px-4 py-3 text-right font-medium">PU facturé</th>
                         <th className="px-4 py-3 text-right font-medium">Cond.</th>
@@ -1204,6 +1205,20 @@ function InvoiceDetail() {
                                     )}
                                   </span>
                                 </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {line.catalog_products ? (
+                                <>
+                                  <span className="block">
+                                    {line.catalog_products.unit || "—"}
+                                  </span>
+                                  <span className="block text-xs text-muted-foreground">
+                                    {line.catalog_products.supplier_name ?? "—"}
+                                  </span>
+                                </>
+                              ) : (
+                                "—"
                               )}
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -1304,7 +1319,7 @@ function InvoiceDetail() {
                     </tbody>
                     <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
                       <tr>
-                        <td className="px-4 py-3" colSpan={3}>
+                        <td className="px-4 py-3" colSpan={4}>
                           Total
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
@@ -1462,6 +1477,7 @@ type OzegoRow = {
   label: string;
   reference: string;
   supplier_name: string | null;
+  unit: string | null;
   price: number | null;
 };
 
@@ -1540,6 +1556,7 @@ function OzegoComparisonTable({
                   <th className="px-4 py-3 font-medium">Ligne facture</th>
                   <th className="px-4 py-3 font-medium">Identifiant Ozego</th>
                   <th className="px-4 py-3 font-medium">{referenceColumnLabel}</th>
+                  <th className="px-4 py-3 font-medium">Unité de négo + nom du fournisseur</th>
                   <th className="px-4 py-3 text-right font-medium">Qté</th>
                   <th className="px-4 py-3 text-right font-medium">PU facturé</th>
                   <th className="px-4 py-3 text-right font-medium">Cond.</th>
@@ -1582,13 +1599,24 @@ function OzegoComparisonTable({
                             <span className="block">{row.label}</span>
                             <span className="block font-mono text-xs text-muted-foreground">
                               {row.reference}
-                              {row.supplier_name ? ` · ${row.supplier_name}` : ""}
                             </span>
                           </>
                         ) : ozegoId ? (
                           <span className="text-xs italic text-muted-foreground">
                             {noOfferLabel}
                           </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {row ? (
+                          <>
+                            <span className="block">{row.unit || "—"}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {row.supplier_name ?? "—"}
+                            </span>
+                          </>
                         ) : (
                           "—"
                         )}
@@ -1677,7 +1705,7 @@ function OzegoComparisonTable({
               </tbody>
               <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
                 <tr>
-                  <td className="px-4 py-3" colSpan={4}>
+                  <td className="px-4 py-3" colSpan={5}>
                     Total
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
