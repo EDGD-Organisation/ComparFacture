@@ -37,6 +37,12 @@ dist-ssr
 # Secrets
 .env
 
+# Claude Code local session state — settings.local.json accumulates per-session
+# permission-approval entries verbatim, which can include secrets embedded in
+# approved command strings (e.g. curl calls with API keys). Never commit it.
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
 # Supabase CLI local dev state
 supabase/.branches
 supabase/.temp

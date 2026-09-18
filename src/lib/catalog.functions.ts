@@ -33,6 +33,13 @@ type ComparatifOffer = {
   supplier?: { supplier_name?: string | null } | null;
   supplier_ref?: string | null;
   prix_nego?: string | number | null;
+  // `weight` est le nom de colonne côté oze-back pour l'unité de négo (ex. "KG",
+  // "PCE", "L", "PAIRE", "LE CENT") — absente de l'API jusqu'au 2026-09-18, ajoutée
+  // depuis. Ne pas confondre avec `order_unit` : c'est un champ distinct côté
+  // oze-back (le conditionnement d'achat — carton/barquette/bidon/etc., et
+  // observé avec des valeurs incohérentes, parfois un nombre au lieu d'un code
+  // d'unité) qui ne correspond pas à l'unité de négo malgré son nom trompeur.
+  weight?: string | null;
 };
 type ComparatifGroup = { ozego_id?: string | null; product_name?: string | null; offers?: unknown };
 
@@ -56,6 +63,7 @@ function flattenComparatifGroups(groups: ComparatifGroup[]): Record<string, unkn
         price: offer.prix_nego,
         ozego_id: group.ozego_id,
         supplier_name: offer.supplier?.supplier_name ?? null,
+        unit: offer.weight ?? null,
       });
     }
   }

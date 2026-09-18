@@ -181,6 +181,21 @@ the `cheapest_by_ozego` RPC to find the cheapest known price in a group, so an i
 compared both against its directly-matched catalog product and against the best price across all
 suppliers for the same product group.
 
+`syncCatalogFromErp` (`src/lib/catalog.functions.ts`) pulls these groups from the oze-back ERP's
+`GET /produits/comparatif` endpoint (`app_settings.erp_api_url`), one `offers[]` entry per
+supplier per group. Until 2026-09-18 those offer objects had no unit field at all, so ERP-synced
+`catalog_products.unit` was always null (only manually-CSV-imported rows had it) — confirmed by
+querying the live endpoint directly, not assumed from docs. oze-back added a `weight` field (e.g.
+"KG", "PCE", "L", "PAIRE", "LE CENT") on that date — despite the name, this is oze-back's actual
+unité de négo column; `flattenComparatifGroups` now maps it to `unit` (~96% of live offers have it
+set, the rest are empty-string gaps in oze-back's own data, mostly hygiene/cleaning products).
+**Don't confuse it with the offer's separate `order_unit` field** — that one is the purchase
+packaging (carton/barquette/bidon/etc.) and, as observed live, sometimes holds a bare number
+instead of a unit code — it is not used for anything here. A separate, richer, ungrouped ERP
+endpoint (`GET /produits`) additionally exposes `order_unit_coef` (a pack-factor-like multiplier,
+e.g. 5.00 for a "Colis" of 5) and `regroupement`/`bio`/`egalim`/`brand`/`origin` — not consumed
+anywhere yet, a candidate for a future enhancement.
+
 ### Database (Supabase/Postgres)
 
 Schema lives in `supabase/migrations/*.sql` (applied in filename/timestamp order). Core tables:
@@ -265,6 +280,26 @@ real Gemini Live API, this alias must be revisited first.
 `comparatif.edgdconseil-pilotage.fr` (switched from an earlier domain in September 2026). Runtime
 env vars — `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, etc. — come from a `.env` file that lives
 on the host, outside this repo and outside version control.
+
+## Subagents
+
+`.claude/agents/` defines project-specific Claude Code subagents (checked into the repo, so they
+apply for every contributor/session, not just locally). Each has a narrow, non-overlapping job —
+delegate to them by name or let Claude pick them up proactively rather than re-deriving their
+context inline:
+
+- **`db-migration-writer`** — writes/reviews `supabase/migrations/*.sql`, enforcing the
+  append-only migration history rule (see "Local database" above).
+- **`server-boundary-reviewer`** — checks the `.server.ts`/`.functions.ts` client-bundle boundary
+  after touching `src/lib` or `src/routes`.
+- **`invoice-pipeline-specialist`** — extraction/matching/pack-factor/Ozego pipeline changes and
+  debugging (see "Invoice processing pipeline" above).
+- **`deploy-build-doctor`** — Vite/Nitro/Docker/CI build and deploy issues (see "Deployment &
+  CI/CD" above); knows the `ws`-stub bundling fix as a template for this class of bug.
+- **`project-code-reviewer`** — reviews changes against this file's actual conventions (lint
+  style, French copy, shadcn usage, no speculative abstractions); reports only, doesn't fix.
+- **`claude-md-curator`** — keeps this file and README.md in sync with reality; use after
+  significant architecture/deploy/tooling changes.
 
 ## Lovable sync
 
