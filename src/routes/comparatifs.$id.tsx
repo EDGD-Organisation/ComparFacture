@@ -194,7 +194,8 @@ function ProspectComparison() {
         .select(
           "id, line_number, supplier_reference, label, quantity, unit, unit_price, discount_percent, line_total, pack_factor, match_status, match_score, match_method, manual_override, matched_product_id, invoices!inner(id, supplier_name, file_name, invoice_number, invoice_date, currency, prospect_id), catalog_products(reference, label, price, unit, ean, family, ozego_id, supplier_name)",
         )
-        .eq("invoices.prospect_id", id);
+        .eq("invoices.prospect_id", id)
+        .eq("excluded", false);
       if (error) throw new Error(error.message);
       return data as unknown as AnalysisLine[];
     },
@@ -831,7 +832,7 @@ function ProspectComparison() {
                         </td>
                         <td
                           className={`px-4 py-2 text-right tabular-nums font-medium ${
-                            row.gap > 0 ? "text-success" : row.gap < 0 ? "text-destructive" : ""
+                            row.gap > 0 ? "text-destructive" : row.gap < 0 ? "text-success" : ""
                           }`}
                         >
                           {euro(row.gap)}
@@ -856,14 +857,14 @@ function ProspectComparison() {
                     : ""}
                 </p>
                 <div>
-                  <p className="mb-2 font-medium">Meilleurs gains</p>
+                  <p className="mb-2 font-medium">Lignes les plus coûteuses</p>
                   <ul className="space-y-1">
                     {analysis.top.map((row) => (
                       <li key={row.id} className="flex justify-between gap-4">
                         <span className="truncate text-muted-foreground">
                           {row.label} · {row.supplier}
                         </span>
-                        <span className="tabular-nums font-medium text-success">
+                        <span className="tabular-nums font-medium text-destructive">
                           {euro(row.gap)}
                         </span>
                       </li>
@@ -878,7 +879,7 @@ function ProspectComparison() {
                         <span className="truncate text-muted-foreground">
                           {row.label} · {row.supplier}
                         </span>
-                        <span className="tabular-nums font-medium text-destructive">
+                        <span className="tabular-nums font-medium text-success">
                           {euro(row.gap)}
                         </span>
                       </li>

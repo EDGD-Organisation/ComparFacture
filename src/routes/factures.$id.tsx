@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Download, Loader2, Pencil, RefreshCw, X } from "lucide-react";
+import { ArrowLeft, Check, Download, Loader2, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { ProductPicker, type PickedProduct } from "@/components/ProductPicker";
@@ -111,6 +111,7 @@ function InvoiceDetail() {
           "id, line_number, supplier_reference, label, quantity, unit, unit_price, discount_percent, line_total, match_status, match_score, match_method, manual_override, pack_factor, matched_product_id, catalog_products(id, reference, label, price, unit, ean, family, currency, ozego_id, supplier_name)",
         )
         .eq("invoice_id", id)
+        .eq("excluded", false)
         .order("line_number");
       if (error) throw new Error(error.message);
       return data as unknown as Line[];
@@ -208,6 +209,19 @@ function InvoiceDetail() {
       .update({ match_status: "confirmed", manual_override: true })
       .eq("id", line.id);
     queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
+  }
+
+  async function deleteLine(line: Line) {
+    const { error } = await supabase
+      .from("invoice_lines")
+      .update({ excluded: true })
+      .eq("id", line.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
+    toast.success("Ligne supprimée");
   }
 
   async function saveLineField(
@@ -808,7 +822,7 @@ function InvoiceDetail() {
                 <table className="w-full text-sm">
                   <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3 font-medium">Ligne facture</th>
+                      <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
                       <th className="px-4 py-3 text-right font-medium">Qté</th>
                       <th className="px-4 py-3 text-right font-medium">PU facturé</th>
                       <th className="px-4 py-3 text-right font-medium">PU comparable</th>
@@ -994,7 +1008,7 @@ function InvoiceDetail() {
                 <table className="w-full text-sm">
                   <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3 font-medium">Ligne facture</th>
+                      <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
                       <th className="px-4 py-3 text-right font-medium">Qté</th>
                       <th className="px-4 py-3 font-medium">Unité</th>
                       <th className="px-4 py-3 text-right font-medium">PU facturé</th>
@@ -1066,6 +1080,7 @@ function InvoiceDetail() {
           onSavePackFactor={(line, value) => void savePackFactor(line, value)}
           onPick={setPicking}
           onUnmatch={(line) => void applyMatch(line, null)}
+          onDelete={(line) => void deleteLine(line)}
         />
       ) : mode === "ozego" ? (
         <OzegoComparisonTable
@@ -1085,6 +1100,7 @@ function InvoiceDetail() {
           onSavePackFactor={(line, value) => void savePackFactor(line, value)}
           onPick={setPicking}
           onUnmatch={(line) => void applyMatch(line, null)}
+          onDelete={(line) => void deleteLine(line)}
         />
       ) : mode === "ozego-preferes" ? (
         <OzegoComparisonTable
@@ -1105,6 +1121,7 @@ function InvoiceDetail() {
           onSavePackFactor={(line, value) => void savePackFactor(line, value)}
           onPick={setPicking}
           onUnmatch={(line) => void applyMatch(line, null)}
+          onDelete={(line) => void deleteLine(line)}
         />
       ) : (
         <>
@@ -1136,7 +1153,7 @@ function InvoiceDetail() {
                   <table className="w-full text-sm">
                     <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Ligne facture</th>
+                        <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
                         <th className="px-4 py-3 font-medium">Produit catalogue</th>
                         <th className="px-4 py-3 font-medium">Unité de négo + nom du fournisseur</th>
                         <th className="px-4 py-3 text-right font-medium">Qté</th>
@@ -1311,6 +1328,14 @@ function InvoiceDetail() {
                                     <X className="size-4 text-destructive" />
                                   </Button>
                                 ) : null}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Supprimer la ligne"
+                                  onClick={() => void deleteLine(line)}
+                                >
+                                  <Trash2 className="size-4 text-destructive" />
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -1501,6 +1526,7 @@ function OzegoComparisonTable({
   onSavePackFactor,
   onPick,
   onUnmatch,
+  onDelete,
 }: {
   lines: Line[];
   cardTitle: string;
@@ -1523,6 +1549,7 @@ function OzegoComparisonTable({
   onSavePackFactor: (line: Line, value: number) => void;
   onPick: (line: Line) => void;
   onUnmatch: (line: Line) => void;
+  onDelete: (line: Line) => void;
 }) {
   return (
     <>
@@ -1553,7 +1580,7 @@ function OzegoComparisonTable({
             <table className="w-full text-sm">
               <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Ligne facture</th>
+                  <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
                   <th className="px-4 py-3 font-medium">Identifiant Ozego</th>
                   <th className="px-4 py-3 font-medium">{referenceColumnLabel}</th>
                   <th className="px-4 py-3 font-medium">Unité de négo + nom du fournisseur</th>
@@ -1697,6 +1724,14 @@ function OzegoComparisonTable({
                               <X className="size-4 text-destructive" />
                             </Button>
                           ) : null}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Supprimer la ligne"
+                            onClick={() => onDelete(line)}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
