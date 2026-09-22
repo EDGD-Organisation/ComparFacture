@@ -9,6 +9,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Lock,
   Pencil,
   RefreshCw,
   Search,
@@ -77,6 +78,7 @@ type Line = {
   manual_override: boolean;
   pack_factor: number | null;
   matched_product_id: string | null;
+  validated_stage: string | null;
   catalog_products: {
     id: string;
     reference: string;
@@ -119,6 +121,21 @@ function lineMatchesFilters(line: Line, search: string, statusFilter: StatusFilt
   return haystack.includes(needle);
 }
 
+/**
+ * The 4 comparison pages that can validate a line's match, in their fixed
+ * left-to-right order. Validating a line on one page locks it for editing on
+ * every later page in this list, while earlier pages (and the page that did
+ * the validating) stay editable — see `isLineLocked`.
+ */
+const STAGE_ORDER = ["fournisseur", "ozego-meme", "ozego", "ozego-preferes"] as const;
+type Stage = (typeof STAGE_ORDER)[number];
+
+function isLineLocked(line: Line, stage: Stage): boolean {
+  const validatedIndex = STAGE_ORDER.indexOf(line.validated_stage as Stage);
+  if (validatedIndex === -1) return false;
+  return validatedIndex < STAGE_ORDER.indexOf(stage);
+}
+
 function InvoiceDetail() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
@@ -156,7 +173,7 @@ function InvoiceDetail() {
       const { data, error } = await supabase
         .from("invoice_lines")
         .select(
-          "id, line_number, supplier_reference, label, quantity, unit, unit_price, discount_percent, line_total, match_status, match_score, match_method, manual_override, pack_factor, matched_product_id, catalog_products(id, reference, label, price, unit, ean, family, currency, ozego_id, supplier_name)",
+          "id, line_number, supplier_reference, label, quantity, unit, unit_price, discount_percent, line_total, match_status, match_score, match_method, manual_override, pack_factor, matched_product_id, validated_stage, catalog_products(id, reference, label, price, unit, ean, family, currency, ozego_id, supplier_name)",
         )
         .eq("invoice_id", id)
         .eq("excluded", false)
@@ -219,7 +236,7 @@ function InvoiceDetail() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
-  async function applyMatch(line: Line, product: PickedProduct | null) {
+  async function applyMatch(line: Line, product: PickedProduct | null, stage: Stage) {
     const { error } = await supabase
       .from("invoice_lines")
       .update({
@@ -228,6 +245,7 @@ function InvoiceDetail() {
         match_method: product ? "manuel" : null,
         match_score: product ? 1 : null,
         manual_override: true,
+        validated_stage: product ? stage : null,
       })
       .eq("id", line.id);
     if (error) {
@@ -267,7 +285,7 @@ function InvoiceDetail() {
   async function confirm(line: Line) {
     await supabase
       .from("invoice_lines")
-      .update({ match_status: "confirmed", manual_override: true })
+      .update({ match_status: "confirmed", manual_override: true, validated_stage: "fournisseur" })
       .eq("id", line.id);
     queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
   }
@@ -1177,8 +1195,9 @@ function InvoiceDetail() {
           onSaveLineField={(line, patch) => void saveLineField(line, patch)}
           onSavePackFactor={(line, value) => void savePackFactor(line, value)}
           onPick={setPicking}
-          onUnmatch={(line) => void applyMatch(line, null)}
+          onUnmatch={(line) => void applyMatch(line, null, "ozego-meme")}
           onDelete={(line) => void deleteLine(line)}
+          stage="ozego-meme"
         />
       ) : mode === "ozego" ? (
         <OzegoComparisonTable
@@ -1198,8 +1217,9 @@ function InvoiceDetail() {
           onSaveLineField={(line, patch) => void saveLineField(line, patch)}
           onSavePackFactor={(line, value) => void savePackFactor(line, value)}
           onPick={setPicking}
-          onUnmatch={(line) => void applyMatch(line, null)}
+          onUnmatch={(line) => void applyMatch(line, null, "ozego")}
           onDelete={(line) => void deleteLine(line)}
+          stage="ozego"
         />
       ) : mode === "ozego-preferes" ? (
         <OzegoComparisonTable
@@ -1220,8 +1240,9 @@ function InvoiceDetail() {
           onSaveLineField={(line, patch) => void saveLineField(line, patch)}
           onSavePackFactor={(line, value) => void savePackFactor(line, value)}
           onPick={setPicking}
-          onUnmatch={(line) => void applyMatch(line, null)}
+          onUnmatch={(line) => void applyMatch(line, null, "ozego-preferes")}
           onDelete={(line) => void deleteLine(line)}
+          stage="ozego-preferes"
         />
       ) : (
         <>
@@ -1423,7 +1444,7 @@ function InvoiceDetail() {
                                     variant="ghost"
                                     size="icon"
                                     title="Retirer la correspondance"
-                                    onClick={() => void applyMatch(line, null)}
+                                    onClick={() => void applyMatch(line, null, "fournisseur")}
                                   >
                                     <X className="size-4 text-destructive" />
                                   </Button>
@@ -1483,7 +1504,7 @@ function InvoiceDetail() {
           open
           onOpenChange={(open) => !open && setPicking(null)}
           initialSearch={picking.supplier_reference || picking.label}
-          onPick={(product) => void applyMatch(picking, product)}
+          onPick={(product) => void applyMatch(picking, product, mode as Stage)}
         />
       ) : null}
     </AppShell>
@@ -1616,6 +1637,7 @@ type OzegoRow = {
 function OzegoComparisonTable({
   lines,
   allLinesCount,
+  stage,
   cardTitle,
   referenceColumnLabel,
   unmatchedLabel,
@@ -1635,6 +1657,9 @@ function OzegoComparisonTable({
   /** Unfiltered line count for this invoice, to tell "no lines at all" apart from
    * "the search/status filter matched nothing" in the empty-state message. */
   allLinesCount: number;
+  /** Which of the 4 pages this table is — used to lock editing for lines
+   * already validated on an earlier page, see `isLineLocked`. */
+  stage: Stage;
   cardTitle: string;
   referenceColumnLabel: string;
   unmatchedLabel: string;
@@ -1705,6 +1730,7 @@ function OzegoComparisonTable({
                   const row = rowFor(line);
                   const gap = ozegoGap(line, row);
                   const out = gap && Math.abs(gap.percentGap ?? 0) > tolerance;
+                  const locked = isLineLocked(line, stage);
                   return (
                     <tr key={line.id} className={out ? "bg-destructive/5" : undefined}>
                       <td className="px-4 py-3">
@@ -1712,6 +1738,11 @@ function OzegoComparisonTable({
                         <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
                           {line.supplier_reference || "sans référence"}
                           {line.catalog_products ? <MatchBadge line={line} /> : null}
+                          {locked ? (
+                            <span title="Verrouillée — déjà validée à une étape précédente">
+                              <Lock className="size-3.5 text-muted-foreground" />
+                            </span>
+                          ) : null}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -1755,34 +1786,55 @@ function OzegoComparisonTable({
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        {locked ? (
+                          <span className="tabular-nums">
+                            {line.quantity}
+                            {line.unit ? (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                {line.unit}
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            <EditableCell
+                              value={line.quantity}
+                              title="Quantité facturée"
+                              className="w-20"
+                              onSave={(value) =>
+                                onSaveLineField(line, { quantity: Number(value) })
+                              }
+                            />
+                            <EditableText
+                              value={line.unit ?? ""}
+                              title="Unité facturée (kg, carton, L…)"
+                              className="w-16"
+                              onSave={(value) => onSaveLineField(line, { unit: value || null })}
+                            />
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {locked ? (
+                          <span className="tabular-nums">{euro(line.unit_price)}</span>
+                        ) : (
                           <EditableCell
-                            value={line.quantity}
-                            title="Quantité facturée"
-                            className="w-20"
-                            onSave={(value) => onSaveLineField(line, { quantity: Number(value) })}
+                            value={line.unit_price}
+                            title="Prix unitaire facturé"
+                            className="ml-auto w-24"
+                            onSave={(value) => onSaveLineField(line, { unit_price: value })}
                           />
-                          <EditableText
-                            value={line.unit ?? ""}
-                            title="Unité facturée (kg, carton, L…)"
-                            className="w-16"
-                            onSave={(value) => onSaveLineField(line, { unit: value || null })}
-                          />
-                        </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <EditableCell
-                          value={line.unit_price}
-                          title="Prix unitaire facturé"
-                          className="ml-auto w-24"
-                          onSave={(value) => onSaveLineField(line, { unit_price: value })}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <PackFactorInput
-                          value={line.pack_factor ?? 1}
-                          onSave={(value) => onSavePackFactor(line, value)}
-                        />
+                        {locked ? (
+                          <span className="tabular-nums">×{line.pack_factor ?? 1}</span>
+                        ) : (
+                          <PackFactorInput
+                            value={line.pack_factor ?? 1}
+                            onSave={(value) => onSavePackFactor(line, value)}
+                          />
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {euro(comparableUnitPrice(line.unit_price, line.pack_factor))}
@@ -1815,7 +1867,12 @@ function OzegoComparisonTable({
                           <Button
                             variant="ghost"
                             size="icon"
-                            title="Modifier la correspondance"
+                            disabled={locked}
+                            title={
+                              locked
+                                ? "Verrouillée — déjà validée à une étape précédente"
+                                : "Modifier la correspondance"
+                            }
                             onClick={() => onPick(line)}
                           >
                             <Pencil className="size-4" />
@@ -1824,7 +1881,12 @@ function OzegoComparisonTable({
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Retirer la correspondance"
+                              disabled={locked}
+                              title={
+                                locked
+                                  ? "Verrouillée — déjà validée à une étape précédente"
+                                  : "Retirer la correspondance"
+                              }
                               onClick={() => onUnmatch(line)}
                             >
                               <X className="size-4 text-destructive" />

@@ -175,6 +175,7 @@ export type Database = {
           unit: string | null;
           unit_price: number | null;
           updated_at: string;
+          validated_stage: string | null;
         };
         Insert: {
           created_at?: string;
@@ -196,6 +197,7 @@ export type Database = {
           unit?: string | null;
           unit_price?: number | null;
           updated_at?: string;
+          validated_stage?: string | null;
         };
         Update: {
           created_at?: string;
@@ -217,6 +219,7 @@ export type Database = {
           unit?: string | null;
           unit_price?: number | null;
           updated_at?: string;
+          validated_stage?: string | null;
         };
         Relationships: [
           {
