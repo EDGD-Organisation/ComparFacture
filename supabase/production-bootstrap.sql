@@ -23,11 +23,11 @@
 --
 -- La migration "20260902095830" (embeddings locaux 384 dimensions) EST
 -- incluse ici, volontairement, contrairement à l'avertissement qu'elle porte
--- dans son propre fichier — cet avertissement ne visait que l'ancien projet
--- Lovable Cloud, qui contient déjà de vrais embeddings 1536 dimensions. Sur
--- un projet neuf et vide, c'est au contraire la variante correcte : le code
--- applicatif actuel (src/lib/embeddings.server.ts) ne calcule plus que des
--- vecteurs à 384 dimensions.
+-- dans son propre fichier — cet avertissement ne visait que le projet Supabase
+-- de production existant, qui contient déjà de vrais embeddings 1536
+-- dimensions. Sur un projet neuf et vide, c'est au contraire la variante
+-- correcte : le code applicatif actuel (src/lib/embeddings.server.ts) ne
+-- calcule plus que des vecteurs à 384 dimensions.
 -- ============================================================================
 
 

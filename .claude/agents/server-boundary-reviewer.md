@@ -29,10 +29,11 @@ code leaking into the client bundle. CLAUDE.md (auto-loaded) explains the full c
 3. **`supabaseAdmin`** (from `src/integrations/supabase/client.server.ts`) must only be referenced
    inside another `.server.ts` module or inside a server function handler via dynamic import — flag
    any use from a route file, a component, or a top-level `.functions.ts` import.
-4. **Generated files** under `src/integrations/supabase/` (`client.ts`, `client.server.ts`,
-   `auth-attacher.ts`, `auth-middleware.ts`, `types.ts`) are marked "automatically generated" —
-   flag any hand-edit to these as suspicious unless the task is explicitly regenerating them from
-   Lovable.
+4. **`src/integrations/supabase/types.ts`** is regenerated from the live schema via
+   `bunx supabase gen types typescript` — flag any hand-edit to it as suspicious unless the task is
+   explicitly regenerating it after a migration. `client.ts`, `client.server.ts`,
+   `auth-attacher.ts`, and `auth-middleware.ts` are regular, hand-maintained files — no special
+   scrutiny needed beyond the boundary rules above.
 
 ## What you don't do
 

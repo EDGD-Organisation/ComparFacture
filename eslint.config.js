@@ -11,8 +11,8 @@ export default tseslint.config(
       "dist",
       ".output",
       ".vinxi",
-      // Lovable-managed scaffolding ("automatically generated. Do not edit it
-      // directly.") — lint it upstream, not here. See CLAUDE.md.
+      // Supabase client boilerplate, including the CLI-generated types.ts —
+      // not hand-formatted here. See CLAUDE.md.
       "src/integrations/supabase/**",
     ],
   },

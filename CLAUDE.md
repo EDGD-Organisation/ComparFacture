@@ -8,12 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 matcher. Users create a comparatif per prospect, upload their supplier invoices (PDF/scan), the
 app extracts line items via AI, matches each line to a reference product catalog, and shows the
 price gap versus catalog price and versus the cheapest known price for the same product group
-(Ozego identifier). See [.lovable/plan/comparateur-de-factures-fournisseurs-2026-08-17.md](.lovable/plan/comparateur-de-factures-fournisseurs-2026-08-17.md)
+(Ozego identifier). See [docs/plan/comparateur-de-factures-fournisseurs-2026-08-17.md](docs/plan/comparateur-de-factures-fournisseurs-2026-08-17.md)
 for the original product spec (in French) — matching thresholds, table list, and out-of-scope
 items are defined there.
 
-Built with Lovable (lovable.dev) and Lovable Cloud (Supabase-based backend). Hosted on GitHub at
-`EDGD-Organisation/ComparFacture`; feature branches are merged into `main` via pull request (the
+TanStack Start app backed by a Supabase (Postgres) project on the user's own Supabase account.
+Hosted on GitHub at `EDGD-Organisation/ComparFacture`; feature branches are merged into `main` via pull request (the
 `develop` branch currently mirrors `main`). See [README.md](README.md) for a (French)
 setup/onboarding walkthrough aimed at new contributors — this file stays the deeper technical
 reference.
@@ -35,16 +35,16 @@ bun run format       # prettier --write .
 There is no test suite in this repo (no test runner configured, no `*.test.ts` files).
 
 `bunfig.toml` enforces a 24h supply-chain guard on new package versions (`minimumReleaseAge`).
-Only bypass it (via `minimumReleaseAgeExcludes`) for `@lovable.dev/*` packages, and confirm with
-the user before adding new excludes.
+`minimumReleaseAgeExcludes` bypasses it per-package when genuinely needed — confirm with the user
+before adding new excludes.
 
 ### Local database (Docker)
 
-Development currently targets a **local** Supabase stack, not the remote Lovable Cloud project —
-by design, until this app is deployed (not yet planned). `bunx supabase start` boots the full
+Development currently targets a **local** Supabase stack, not the remote Supabase project — by
+design, until this app is deployed (not yet planned). `bunx supabase start` boots the full
 stack (Postgres 17, PostgREST, Auth, Storage, Studio) in Docker and applies every migration in
 `supabase/migrations/`. `.env.local` holds the local stack's credentials and — since bun loads it
-with higher precedence than `.env` — overrides the remote Lovable Cloud config for as long as it
+with higher precedence than `.env` — overrides the remote project's config for as long as it
 exists; delete it to fall back to remote. `bunx supabase status` reprints the local URLs/keys
 (Studio at `:54323`); `bunx supabase stop` shuts the stack down (data persists in the Docker
 volume; add `--no-backup` to wipe it).
@@ -76,9 +76,10 @@ Routes live in `src/routes/`; `routeTree.gen.ts` is auto-generated — never edi
 `_layout.tsx`, `__root.tsx`, splat routes). The only root layout is `src/routes/__root.tsx`
 (wraps every page in `QueryClientProvider`, renders `<Outlet />` — do not remove it).
 
-`vite.config.ts` is intentionally minimal: `@lovable.dev/vite-tanstack-config` already wires up
-TanStack Start, React, Tailwind, path aliases, and Nitro — read the comment at the top of that
-file before adding plugins, since duplicating them breaks the build.
+`vite.config.ts` wires up TanStack Start (`@tanstack/react-start/plugin/vite`), React
+(`@vitejs/plugin-react`), Tailwind (`@tailwindcss/vite`), path aliases (`vite-tsconfig-paths`), and
+Nitro (`nitro/vite`, build-only) directly — read the comment at the top of that file before adding
+plugins, since duplicating one of these breaks the build.
 
 `src/server.ts` and `src/start.ts` wrap the generated TanStack Start server entry to force
 internal SSR/server-function errors into a plain error page (`src/lib/error-page.ts`) instead of
@@ -112,18 +113,20 @@ the user's Supabase bearer token.
   (`supabaseAdmin`) — server-side clients using the publishable/service-role key, used from
   `.server.ts` modules for AI extraction, matching, and catalog import (heavier logic that
   shouldn't run in the browser).
-- Several files under `src/integrations/supabase/` are marked "automatically generated. Do not
-  edit it directly" (`client.ts`, `client.server.ts`, `auth-attacher.ts`, `auth-middleware.ts`,
-  `types.ts`) — these are Lovable-managed Supabase scaffolding; treat them as generated and avoid
-  hand-editing unless regenerating the equivalent from Lovable.
+- `src/integrations/supabase/types.ts` is regenerated from the live schema via
+  `bunx supabase gen types typescript` (local or `--project-id` for the remote project) — don't
+  hand-edit it, regenerate it instead after a migration changes the schema.
+  `client.ts`, `client.server.ts`, `auth-attacher.ts`, and `auth-middleware.ts` are regular,
+  hand-maintained Supabase client boilerplate (originally scaffolded by a project template, kept
+  out of `bun run lint`/`format` mainly for `types.ts`'s sake — see `eslint.config.js`).
 
 ### Invoice processing pipeline
 
 1. `runInvoiceProcessing` (`src/lib/invoices.server.ts`) downloads the invoice file from Supabase
    Storage, base64-encodes it, and calls `structureInvoiceImage` (`src/lib/structure.server.ts`),
    which sends the file **directly** to the Gemini API (`@google/genai`, `GEMINI_API_KEY`, model
-   `gemini-3.1-flash-lite`, **not** the Lovable AI Gateway) as multimodal input (image or PDF) with
-   a `responseSchema`-constrained JSON output, to get header fields + line items.
+   `gemini-3.1-flash-lite`, **not** through any hosted AI gateway) as multimodal input (image or
+   PDF) with a `responseSchema`-constrained JSON output, to get header fields + line items.
    - An earlier OCR-based design (Tesseract → plain text → LLM structuring) was built, tested
      against real invoices, and deliberately dropped: flattening the image to text lost entire
      line items on dense tables and couldn't distinguish printed numbers from handwritten
@@ -135,8 +138,8 @@ the user's Supabase bearer token.
      statement (Postgres error `22008`) with no partial write. Always check the `error` from that
      final `invoices` update in `runInvoiceProcessing` — the pipeline previously swallowed this
      failure silently, leaving the row stuck at `status: "processing"`.
-   - `ai.server.ts` (Lovable AI Gateway) has been removed entirely — `embedTexts` now lives in
-     `src/lib/embeddings.server.ts` and is unrelated to invoice extraction.
+   - `ai.server.ts` (the old hosted AI gateway client) has been removed entirely — `embedTexts` now
+     lives in `src/lib/embeddings.server.ts` and is unrelated to invoice extraction.
 2. Extracted lines go through `matchLines` (`src/lib/matching.server.ts`), which resolves each
    line to a `catalog_products` row via, in order: learned `product_mappings` (exact then fuzzy
    token match), exact supplier reference/EAN, Postgres trigram search (`search_catalog` RPC,
@@ -160,8 +163,8 @@ judging extraction quality on a new invoice format before trusting it in the rea
 `src/lib/embeddings.server.ts` computes `catalog_products.embedding` and the query-side vectors
 used by `match_catalog_embedding` entirely in-process via `@huggingface/transformers` (ONNX
 Runtime, `Xenova/multilingual-e5-small`, 384 dimensions, `"query: "` prefix applied uniformly to
-both catalog and query text) — no network call, no API key, replacing the Lovable AI
-Gateway/OpenAI `text-embedding-3-small` (1536-dim) call that used to live in the now-deleted
+both catalog and query text) — no network call, no API key, replacing the hosted-gateway
+OpenAI `text-embedding-3-small` (1536-dim) call that used to live in the now-deleted
 `ai.server.ts`. `multilingual-e5-small` was chosen after testing several candidates against real
 French food-service invoice text — it was the only one that reliably ranked a real "same product,
 different wording" pair above a real "different product" pair; two popular general multilingual
@@ -171,8 +174,8 @@ on first use and cached under `.cache/transformers/`.
 **Local-only, one-way schema change**: `supabase/migrations/20260902095830_local_embeddings_384_dim.sql`
 switched `catalog_products.embedding` from `vector(1536)` to `vector(384)` and rebuilt
 `match_catalog_embedding` accordingly. This is only safe locally because local embeddings were
-always NULL (the Lovable Gateway was never reachable in local dev) — do **not** run this migration
-against the remote/production project, which has real 1536-dim embeddings.
+always NULL (the old hosted gateway was never reachable in local dev) — do **not** run this
+migration against the remote/production project, which has real 1536-dim embeddings.
 
 ### Ozego identifiers
 
@@ -215,9 +218,9 @@ into server functions.
 Client-side (Vite-injected, `VITE_` prefix) and server-side pairs both exist for Supabase:
 `SUPABASE_URL`/`VITE_SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`/`VITE_SUPABASE_PUBLISHABLE_KEY`,
 plus `SUPABASE_PROJECT_ID`/`VITE_SUPABASE_PROJECT_ID`. Server-only: `SUPABASE_SERVICE_ROLE_KEY`
-(used by `supabaseAdmin`) — not expected to live in the local `.env`, provisioned by Lovable Cloud.
-Catalog embeddings no longer need `LOVABLE_API_KEY`/any API key — see "Embeddings" above.
-`GEMINI_API_KEY` (Google AI Studio, direct — not the Lovable Gateway) is required
+(used by `supabaseAdmin`) — not expected to live in the local `.env`, found in the Supabase
+dashboard's project API settings. Catalog embeddings no longer need any API key — see "Embeddings"
+above. `GEMINI_API_KEY` (Google AI Studio, direct — not through any hosted gateway) is required
 for invoice extraction (`structure.server.ts`) and, unlike the others, is expected in the local
 `.env` for development.
 
@@ -233,8 +236,8 @@ ESLint (`eslint.config.js`) forbids importing the Next.js `server-only` package 
 uses the `*.server.ts` naming convention (or `@tanstack/react-start/server-only`) instead. Prettier
 is run through `eslint-plugin-prettier`, so `bun run lint` also enforces formatting
 (100-char width, double quotes, trailing commas — see `.prettierrc`). `eslint.config.js` also
-ignores `src/integrations/supabase/**` entirely — that's the generated Lovable scaffolding (see
-"Two Supabase clients" above), not code maintained by hand here, so it isn't linted/formatted.
+ignores `src/integrations/supabase/**` entirely — mainly for `types.ts`'s sake (see "Two Supabase
+clients" above), which is CLI-generated and shouldn't be hand-formatted.
 
 ## Deployment & CI/CD
 
@@ -260,8 +263,8 @@ workflows (`.github/workflows/`), all scoped to `main`:
 an `oven/bun:1` stage (native deps like `onnxruntime-node` and `sharp` must be resolved inside this
 Linux image, not copied in from a host build — see "Embeddings" above), then only the built
 `.output/` is copied into a slim `node:22-bookworm-slim` runtime stage. `NITRO_PRESET=node-server`
-is forced at build time because `@lovable.dev/vite-tanstack-config` otherwise targets Cloudflare
-Workers by default (see `vite.config.ts` note above). The runtime stage installs `libgomp1`
+is forced at build time because `nitro/vite` otherwise targets Cloudflare Workers by default when
+no preset is set (see `vite.config.ts` note above). The runtime stage installs `libgomp1`
 (required by `onnxruntime-node` for local embeddings, see "Embeddings" above) and exposes a `/`
 healthcheck on port 3000.
 
@@ -300,10 +303,3 @@ context inline:
   style, French copy, shadcn usage, no speculative abstractions); reports only, doesn't fix.
 - **`claude-md-curator`** — keeps this file and README.md in sync with reality; use after
   significant architecture/deploy/tooling changes.
-
-## Lovable sync
-
-This project is connected to Lovable (see [AGENTS.md](AGENTS.md)). Avoid force-pushing or
-rewriting published git history (rebase/amend/squash of pushed commits) — it desyncs Lovable's
-copy of the project history. Commits pushed to the connected branch sync back into the Lovable
-editor.

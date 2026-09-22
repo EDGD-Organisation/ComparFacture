@@ -1,6 +1,6 @@
 ---
 name: deploy-build-doctor
-description: Specialist in this project's build and deployment pipeline — Vite/TanStack Start/Nitro config (vite.config.ts, @lovable.dev/vite-tanstack-config), the multi-stage Dockerfile, docker-compose.yml/Traefik, and the three chained GitHub Actions workflows (ci.yml, docker-publish.yml, deploy.yml). Use proactively for production build failures, bundling/externalization bugs (a dependency missing at runtime under .output/server), Docker build issues, or CI/CD workflow changes.
+description: Specialist in this project's build and deployment pipeline — Vite/TanStack Start/Nitro config (vite.config.ts), the multi-stage Dockerfile, docker-compose.yml/Traefik, and the three chained GitHub Actions workflows (ci.yml, docker-publish.yml, deploy.yml). Use proactively for production build failures, bundling/externalization bugs (a dependency missing at runtime under .output/server), Docker build issues, or CI/CD workflow changes.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
 color: orange
@@ -15,14 +15,13 @@ next to it before assuming a new bundling failure needs a different kind of fix.
 
 ## What you own
 
-- `vite.config.ts` — intentionally minimal; `@lovable.dev/vite-tanstack-config` wires up TanStack
-  Start, React, Tailwind, path aliases, and Nitro. Read the comment at the top of that file before
-  adding plugins (duplicating them breaks the build), and check
-  `node_modules/@lovable.dev/vite-tanstack-config/dist/index.d.ts` for the actual typed config
-  surface before assuming an option doesn't exist.
+- `vite.config.ts` — wires up TanStack Start (`@tanstack/react-start/plugin/vite`), React
+  (`@vitejs/plugin-react`), Tailwind (`@tailwindcss/vite`), path aliases (`vite-tsconfig-paths`),
+  and Nitro (`nitro/vite`, build-only) directly. Read the comment at the top of that file before
+  adding plugins (duplicating one of these breaks the build).
 - `Dockerfile` — multi-stage Bun→Node build. Native deps (`onnxruntime-node`, `sharp`) must resolve
   *inside* the Linux build stage, not get copied from a host build. `NITRO_PRESET=node-server` is
-  forced because the default preset targets Cloudflare Workers.
+  forced because `nitro/vite`'s default preset targets Cloudflare Workers.
 - `docker-compose.yml` — Traefik-fronted, external `web` network, production domain
   `comparatif.edgdconseil-pilotage.fr`.
 - `.github/workflows/{ci,docker-publish,deploy}.yml` — CI (`tsc --noEmit`, lint, build) → build &

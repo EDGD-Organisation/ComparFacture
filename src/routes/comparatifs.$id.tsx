@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Check,
   ChevronsUpDown,
+  Download,
   FileUp,
   Loader2,
   RefreshCw,
@@ -249,6 +250,19 @@ function ProspectComparison() {
     queryClient.invalidateQueries({ queryKey: ["invoices", id] });
     router.invalidate();
     toast.success("Facture supprimée");
+  }
+
+  async function viewInvoiceFile(path: string | null) {
+    if (!path) {
+      toast.error("Aucun fichier associé à cette facture");
+      return;
+    }
+    const { data, error } = await supabase.storage.from("invoices").createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      toast.error(error?.message ?? "Impossible d'ouvrir le fichier");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
   const invoices = invoicesQuery.data ?? [];
@@ -981,6 +995,14 @@ function ProspectComparison() {
                       {status.label}
                     </Badge>
                     <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Voir le fichier original"
+                        onClick={() => void viewInvoiceFile(invoice.file_path)}
+                      >
+                        <Download className="size-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

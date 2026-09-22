@@ -20,8 +20,8 @@ ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL} \
     VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY} \
     VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID}
 
-# @lovable.dev/vite-tanstack-config targets Cloudflare Workers by default;
-# force a plain Node server build for our own Docker/Traefik deployment.
+# nitro/vite (wired up in vite.config.ts) targets Cloudflare Workers by default when no
+# preset is set; force a plain Node server build for our own Docker/Traefik deployment.
 ENV NITRO_PRESET=node-server
 RUN bun run build
 

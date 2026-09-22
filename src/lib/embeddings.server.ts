@@ -26,7 +26,7 @@ function getExtractor(): Promise<FeatureExtractionPipeline> {
 }
 
 /**
- * Local replacement for the Lovable AI Gateway embedding call — runs entirely
+ * Local replacement for the previous cloud embedding-API call — runs entirely
  * in-process (ONNX Runtime via @huggingface/transformers), no network call, no
  * API key. Batches to keep peak memory bounded on large catalog syncs.
  *

@@ -3,7 +3,18 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Download, Loader2, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Download,
+  FileText,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { ProductPicker, type PickedProduct } from "@/components/ProductPicker";
@@ -23,6 +34,13 @@ import {
   type OzegoVariant,
 } from "@/lib/ozego";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/factures/$id")({
   head: () => ({
@@ -73,6 +91,34 @@ type Line = {
   } | null;
 };
 
+type StatusFilter = "all" | "validated" | "unvalidated";
+
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+function lineMatchesFilters(line: Line, search: string, statusFilter: StatusFilter): boolean {
+  if (statusFilter === "validated" && line.match_status !== "confirmed") return false;
+  if (statusFilter === "unvalidated" && line.match_status === "confirmed") return false;
+
+  const needle = normalizeForSearch(search.trim());
+  if (!needle) return true;
+  const haystack = normalizeForSearch(
+    [
+      line.label,
+      line.supplier_reference,
+      line.catalog_products?.label,
+      line.catalog_products?.reference,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+  return haystack.includes(needle);
+}
+
 function InvoiceDetail() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
@@ -80,6 +126,8 @@ function InvoiceDetail() {
   const [mode, setMode] = useState<
     "fournisseur" | "ozego" | "recap" | "achat" | "ozego-meme" | "ozego-preferes"
   >("recap");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const rematch = useServerFn(rematchInvoice);
 
   const invoiceQuery = useQuery({
@@ -157,6 +205,19 @@ function InvoiceDetail() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  async function viewInvoiceFile(path: string | null | undefined) {
+    if (!path) {
+      toast.error("Aucun fichier associé à cette facture");
+      return;
+    }
+    const { data, error } = await supabase.storage.from("invoices").createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      toast.error(error?.message ?? "Impossible d'ouvrir le fichier");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
 
   async function applyMatch(line: Line, product: PickedProduct | null) {
     const { error } = await supabase
@@ -286,6 +347,7 @@ function InvoiceDetail() {
 
   const invoice = invoiceQuery.data;
   const lines = linesQuery.data ?? [];
+  const visibleLines = lines.filter((line) => lineMatchesFilters(line, search, statusFilter));
   const tolerance = settingsQuery.data?.tolerance_percent ?? 2;
 
   const totals = lines.reduce(
@@ -697,6 +759,10 @@ function InvoiceDetail() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => void viewInvoiceFile(invoice?.file_path)}>
+            <FileText className="size-4" />
+            Voir le fichier original
+          </Button>
           {mode === "ozego" || mode === "recap" || mode === "fournisseur" ? (
             <Button
               variant="outline"
@@ -788,6 +854,33 @@ function InvoiceDetail() {
         </button>
       </div>
 
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-sm">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher par référence, libellé…"
+            className="pl-8"
+          />
+        </div>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+        >
+          <SelectTrigger className="w-48" aria-label="Filtrer par statut de rapprochement">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les lignes</SelectItem>
+            <SelectItem value="validated">Lignes validées</SelectItem>
+            <SelectItem value="unvalidated">Lignes non validées</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {mode === "recap" ? (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-4">
@@ -835,7 +928,7 @@ function InvoiceDetail() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {lines.map((line) => {
+                    {visibleLines.map((line) => {
                       const catalogPrice = line.catalog_products?.price ?? null;
                       const sup = lineGap(
                         line.unit_price,
@@ -983,9 +1076,11 @@ function InvoiceDetail() {
                     </tr>
                   </tfoot>
                 </table>
-                {lines.length === 0 ? (
+                {visibleLines.length === 0 ? (
                   <p className="px-4 py-6 text-sm text-muted-foreground">
-                    Aucune ligne extraite pour cette facture.
+                    {lines.length === 0
+                      ? "Aucune ligne extraite pour cette facture."
+                      : "Aucune ligne ne correspond aux filtres."}
                   </p>
                 ) : null}
               </div>
@@ -1017,7 +1112,7 @@ function InvoiceDetail() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {lines.map((line) => (
+                    {visibleLines.map((line) => (
                       <tr key={line.id}>
                         <td className="px-4 py-3">
                           <span className="block font-medium">{line.label}</span>
@@ -1055,9 +1150,11 @@ function InvoiceDetail() {
                     </tr>
                   </tfoot>
                 </table>
-                {lines.length === 0 ? (
+                {visibleLines.length === 0 ? (
                   <p className="px-4 py-6 text-sm text-muted-foreground">
-                    Aucune ligne extraite pour cette facture.
+                    {lines.length === 0
+                      ? "Aucune ligne extraite pour cette facture."
+                      : "Aucune ligne ne correspond aux filtres."}
                   </p>
                 ) : null}
               </div>
@@ -1066,7 +1163,8 @@ function InvoiceDetail() {
         </>
       ) : mode === "ozego-meme" ? (
         <OzegoComparisonTable
-          lines={lines}
+          lines={visibleLines}
+          allLinesCount={lines.length}
           cardTitle={`Prix le moins cher chez ${invoiceSupplier ?? "ce fournisseur"}`}
           referenceColumnLabel="Référence même fournisseur"
           unmatchedLabel="Lignes sans offre chez ce fournisseur"
@@ -1084,7 +1182,8 @@ function InvoiceDetail() {
         />
       ) : mode === "ozego" ? (
         <OzegoComparisonTable
-          lines={lines}
+          lines={visibleLines}
+          allLinesCount={lines.length}
           cardTitle="Meilleur prix par identifiant Ozego"
           referenceColumnLabel="Référence la moins chère"
           unmatchedLabel="Lignes sans identifiant Ozego"
@@ -1104,7 +1203,8 @@ function InvoiceDetail() {
         />
       ) : mode === "ozego-preferes" ? (
         <OzegoComparisonTable
-          lines={lines}
+          lines={visibleLines}
+          allLinesCount={lines.length}
           cardTitle="Meilleur prix chez vos fournisseurs préférés"
           referenceColumnLabel="Référence fournisseur préféré"
           unmatchedLabel={
@@ -1166,7 +1266,7 @@ function InvoiceDetail() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {lines.map((line) => {
+                      {visibleLines.map((line) => {
                         const catalogPrice = line.catalog_products?.price ?? null;
                         const gap = lineGap(
                           line.unit_price,
@@ -1364,9 +1464,11 @@ function InvoiceDetail() {
                   </table>
                   {linesQuery.isLoading ? (
                     <p className="px-4 py-6 text-sm text-muted-foreground">Chargement…</p>
-                  ) : lines.length === 0 ? (
+                  ) : visibleLines.length === 0 ? (
                     <p className="px-4 py-6 text-sm text-muted-foreground">
-                      Aucune ligne extraite pour cette facture.
+                      {lines.length === 0
+                        ? "Aucune ligne extraite pour cette facture."
+                        : "Aucune ligne ne correspond aux filtres."}
                     </p>
                   ) : null}
                 </div>
@@ -1513,6 +1615,7 @@ type OzegoRow = {
  */
 function OzegoComparisonTable({
   lines,
+  allLinesCount,
   cardTitle,
   referenceColumnLabel,
   unmatchedLabel,
@@ -1529,6 +1632,9 @@ function OzegoComparisonTable({
   onDelete,
 }: {
   lines: Line[];
+  /** Unfiltered line count for this invoice, to tell "no lines at all" apart from
+   * "the search/status filter matched nothing" in the empty-state message. */
+  allLinesCount: number;
   cardTitle: string;
   referenceColumnLabel: string;
   unmatchedLabel: string;
@@ -1760,7 +1866,9 @@ function OzegoComparisonTable({
             </table>
             {lines.length === 0 ? (
               <p className="px-4 py-6 text-sm text-muted-foreground">
-                Aucune ligne extraite pour cette facture.
+                {allLinesCount === 0
+                  ? "Aucune ligne extraite pour cette facture."
+                  : "Aucune ligne ne correspond aux filtres."}
               </p>
             ) : null}
           </div>

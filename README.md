@@ -6,8 +6,8 @@ référence, puis de comparer le prix facturé au prix catalogue et au meilleur 
 même produit (identifiant Ozego), y compris chez le même fournisseur, tous fournisseurs confondus,
 ou seulement chez les fournisseurs préférés du prospect.
 
-Construit avec [Lovable](https://lovable.dev) (Lovable Cloud / Supabase), mais ce dépôt fonctionne
-aussi en développement **100 % local** grâce à Docker (voir plus bas).
+Application TanStack Start adossée à un projet Supabase ; ce dépôt fonctionne aussi en
+développement **100 % local** grâce à Docker (voir plus bas).
 
 ## Sommaire
 
@@ -53,7 +53,8 @@ Le projet lit deux fichiers à la racine, avec `.env.local` prioritaire sur `.en
 
 - **`.env.local`** — à créer vous-même pour le développement local. Une fois rempli, il **prend le
   pas sur `.env`** tant qu'il existe (pratique pour basculer entre stack locale et distante).
-- **`.env`** — configuration par défaut / distante (Lovable Cloud), si `.env.local` n'existe pas.
+- **`.env`** — configuration par défaut / distante (le projet Supabase de production), si
+  `.env.local` n'existe pas.
 
 Ni l'un ni l'autre n'est suivi par Git (`.env` est ignoré explicitement, `.env.local` par le motif
 `*.local`).
@@ -66,7 +67,7 @@ Ni l'un ni l'autre n'est suivi par Git (`.env` est ignoré explicitement, `.env.
 | `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Idem                                                                                              | Oui                                                      |
 | `SUPABASE_PROJECT_ID` / `VITE_SUPABASE_PROJECT_ID`           | Idem (référence du projet, voir `supabase/config.toml`)                                           | Oui                                                      |
 | `SUPABASE_SERVICE_ROLE_KEY`                                  | Idem (clé service-role, ne jamais exposer côté client)                                            | Oui, pour les fonctions serveur admin                    |
-| `GEMINI_API_KEY`                                             | [Google AI Studio](https://aistudio.google.com/) — clé API directe (pas de passerelle Lovable)    | **Oui** — sans elle, l'extraction IA des factures échoue |
+| `GEMINI_API_KEY`                                             | [Google AI Studio](https://aistudio.google.com/) — clé API directe (pas de passerelle intermédiaire) | **Oui** — sans elle, l'extraction IA des factures échoue |
 | `COMPARATIF_API_KEY`                                         | Fournie par le backend ERP externe ("oze-back") si vous synchronisez le catalogue depuis leur API | Non (seulement pour la synchro catalogue automatique)    |
 
 Exemple de `.env.local` minimal une fois la stack Docker démarrée :
@@ -84,7 +85,7 @@ GEMINI_API_KEY="<votre clé Google AI Studio>"
 
 ## 4. Base de données locale (Docker)
 
-Le développement local n'utilise **pas** le projet Supabase distant (Lovable Cloud) mais une stack
+Le développement local n'utilise **pas** le projet Supabase distant (production) mais une stack
 Postgres complète tournant dans Docker sur votre machine.
 
 ### Démarrage
