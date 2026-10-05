@@ -96,10 +96,7 @@ type Line = {
 type StatusFilter = "all" | "validated" | "unvalidated";
 
 function normalizeForSearch(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 function lineMatchesFilters(line: Line, search: string, statusFilter: StatusFilter): boolean {
@@ -874,9 +871,7 @@ function InvoiceDetail() {
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-sm">
-          <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -1276,7 +1271,9 @@ function InvoiceDetail() {
                       <tr>
                         <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
                         <th className="px-4 py-3 font-medium">Produit catalogue</th>
-                        <th className="px-4 py-3 font-medium">Unité de négo + nom du fournisseur</th>
+                        <th className="px-4 py-3 font-medium">
+                          Unité de négo + nom du fournisseur
+                        </th>
                         <th className="px-4 py-3 text-right font-medium">Qté</th>
                         <th className="px-4 py-3 text-right font-medium">PU facturé</th>
                         <th className="px-4 py-3 text-right font-medium">Cond.</th>
@@ -1348,9 +1345,7 @@ function InvoiceDetail() {
                             <td className="px-4 py-3">
                               {line.catalog_products ? (
                                 <>
-                                  <span className="block">
-                                    {line.catalog_products.unit || "—"}
-                                  </span>
+                                  <span className="block">{line.catalog_products.unit || "—"}</span>
                                   <span className="block text-xs text-muted-foreground">
                                     {line.catalog_products.supplier_name ?? "—"}
                                   </span>
@@ -1801,9 +1796,7 @@ function OzegoComparisonTable({
                               value={line.quantity}
                               title="Quantité facturée"
                               className="w-20"
-                              onSave={(value) =>
-                                onSaveLineField(line, { quantity: Number(value) })
-                              }
+                              onSave={(value) => onSaveLineField(line, { quantity: Number(value) })}
                             />
                             <EditableText
                               value={line.unit ?? ""}

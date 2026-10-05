@@ -1,0 +1,10 @@
+# Normalize all text files to LF on checkin/checkout, regardless of the
+# checking-out machine's core.autocrlf — this repo had no .gitattributes
+# before, so CRLF line endings committed from Windows checkouts were landing
+# in the repository itself (not just a local working-tree artifact), which is
+# why `bun run lint` (prettier, LF by default) failed in CI on every commit.
+* text=auto eol=lf
+
+*.jpg binary
+*.pdf binary
+*.xlsx binary
