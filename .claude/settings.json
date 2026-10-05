@@ -4,7 +4,14 @@
       "Bash(cd \"/c/Users/Utilisateur/Documents/GH/Invoice Matcher\" && rm -rf .output && NITRO_PRESET=node-server timeout 180 bun run build 2>&1 | tail -20)",
       "Bash(dd if=\".output/server/_libs/@huggingface/transformers+[...].mjs\" bs=1 skip=277800 count=400)",
       "Read(//tmp/docker-sim/**)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(mkdir -p /tmp/prod-deps-test)",
+      "Bash(cp \"/c/Users/Utilisateur/Documents/GH/Invoice Matcher/package.json\" \"/c/Users/Utilisateur/Documents/GH/Invoice Matcher/bun.lock\" /tmp/prod-deps-test/)",
+      "Read(//tmp/**)",
+      "Bash(rm -rf /tmp/prod-deps-test)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

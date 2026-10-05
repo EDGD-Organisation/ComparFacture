@@ -25,6 +25,19 @@ ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL} \
 ENV NITRO_PRESET=node-server
 RUN bun run build
 
+# onnxruntime-node (local embeddings, see @huggingface/transformers in CLAUDE.md "Embeddings")
+# loads its native binary, and some of its own dependencies (onnxruntime-common, adm-zip,
+# global-agent, ...), via createRequire(import.meta.url)(...) indirections that Nitro's
+# build-time dependency tracer doesn't follow (same blind spot class as the `ws` package, see
+# vite.config.ts) — so `.output/server`'s own traced node_modules can't be trusted to carry the
+# full, correct dependency closure for this one package. A plain `bun install --production` (no
+# devDependencies) resolves that closure correctly via bun's real resolver instead of a static
+# tracer, so we ship it wholesale as a fallback underneath .output/server's own node_modules.
+FROM oven/bun:1 AS prod-deps
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 
@@ -34,13 +47,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/.output ./.output
-
-# onnxruntime-node loads its native binary via a `createRequire(import.meta.url)("onnxruntime-node")`
-# indirection inside @huggingface/transformers — Nitro's build-time dependency tracer only follows
-# static import/require calls, so it misses this one and leaves it as an unresolved runtime require
-# (same externalization blind spot as the `ws` package, see vite.config.ts — but this dependency is
-# load-bearing for local embeddings, so it's copied in instead of aliased away).
-COPY --from=build /app/node_modules/onnxruntime-node ./node_modules/onnxruntime-node
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 ENV NODE_ENV=production \
     PORT=3000
