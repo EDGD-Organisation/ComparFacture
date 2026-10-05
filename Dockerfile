@@ -35,6 +35,13 @@ RUN apt-get update \
 
 COPY --from=build /app/.output ./.output
 
+# onnxruntime-node loads its native binary via a `createRequire(import.meta.url)("onnxruntime-node")`
+# indirection inside @huggingface/transformers — Nitro's build-time dependency tracer only follows
+# static import/require calls, so it misses this one and leaves it as an unresolved runtime require
+# (same externalization blind spot as the `ws` package, see vite.config.ts — but this dependency is
+# load-bearing for local embeddings, so it's copied in instead of aliased away).
+COPY --from=build /app/node_modules/onnxruntime-node ./node_modules/onnxruntime-node
+
 ENV NODE_ENV=production \
     PORT=3000
 EXPOSE 3000
