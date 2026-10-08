@@ -215,20 +215,20 @@ Email + password login (Supabase Auth, `/connexion`); accounts are created by an
 public signup) from `/utilisateurs` (`users.functions.ts` -> `users.server.ts`, service-role).
 Two roles in `public.profiles.role`:
 
-- **expert** — creates comparatifs and uploads invoice files (which triggers extraction), sees the
-  comparatif list and each invoice's name/status. Nothing else: no invoice detail/matching page,
-  no price gaps, catalogue or settings, and no update/delete.
-- **admin** — everything an expert can do, plus matching/validation, deletion, catalogue,
+- **commercial** — creates comparatifs and uploads invoice files (which triggers extraction), sees
+  the comparatif list and each invoice's name/status. Nothing else: no invoice detail/matching
+  page, no price gaps, catalogue or settings, and no update/delete.
+- **expert** — everything a commercial can do, plus matching/validation, deletion, catalogue,
   settings and user management.
 
 Enforced in three places: RLS (`20261007140000_add_roles_and_lock_down_rls.sql`, helpers
-`is_admin()`/`is_expert()`; the old `open_*` anon policies are gone), server functions
+`is_expert()`/`is_commercial()`; the old `open_*` anon policies are gone), server functions
 (`.middleware([requireSupabaseAuth])` + `requireRole` from `auth.server.ts` — every server fn must
 do this), and the UI (`useAuth()` in `src/lib/auth.ts`; `AppShell` redirects to `/connexion`,
-hides admin nav, and `<AppShell adminOnly>` blocks admin pages). RLS cannot hide columns, so
-experts can technically read `invoices` rows (totals included) — only the UI hides them; they have
-no policy on `invoice_lines`. Experts currently see all comparatifs; to restrict them to their own
-change `expert_select_prospects` to also require `created_by = auth.uid()` (`prospects.created_by`
+hides expert-only nav, and `<AppShell expertOnly>` blocks expert-only pages). RLS cannot hide columns, so
+commerciaux can technically read `invoices` rows (totals included) — only the UI hides them; they have
+no policy on `invoice_lines`. Commerciaux currently see all comparatifs; to restrict them to their own
+change `commercial_select_prospects` to also require `created_by = auth.uid()` (`prospects.created_by`
 is already filled). `serverSupabase()` (`db.server.ts`) now returns the service-role client,
 since the anon key can no longer read these tables — so `SUPABASE_SERVICE_ROLE_KEY` is required
 wherever the pipeline runs, local dev included.

@@ -123,7 +123,7 @@ function ProspectComparison() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const process = useServerFn(processInvoice);
-  const { isAdmin } = useAuth();
+  const { isExpert } = useAuth();
 
   const prospectQuery = useQuery({
     queryKey: ["prospect", id],
@@ -156,7 +156,7 @@ function ProspectComparison() {
 
   const suppliersQuery = useQuery({
     queryKey: ["catalog-suppliers"],
-    enabled: isAdmin,
+    enabled: isExpert,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("distinct_catalog_suppliers");
       if (error) throw new Error(error.message);
@@ -181,7 +181,7 @@ function ProspectComparison() {
 
   const settingsQuery = useQuery({
     queryKey: ["settings"],
-    enabled: isAdmin,
+    enabled: isExpert,
     queryFn: async () => {
       const { data } = await supabase
         .from("app_settings")
@@ -193,7 +193,7 @@ function ProspectComparison() {
 
   const analysisQuery = useQuery({
     queryKey: ["prospect-lines", id],
-    enabled: isAdmin,
+    enabled: isExpert,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoice_lines")
@@ -281,14 +281,14 @@ function ProspectComparison() {
 
   const ozegoQuery = useQuery({
     queryKey: ["ozego-best", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: isAdmin && ozegoIds.length > 0,
+    enabled: isExpert && ozegoIds.length > 0,
     queryFn: () => fetchCheapestByOzego(ozegoIds),
   });
   const bestByOzego: Map<string, OzegoBest> = ozegoQuery.data ?? new Map();
 
   const ozegoVariantsQuery = useQuery({
     queryKey: ["ozego-variants", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: isAdmin && ozegoIds.length > 0,
+    enabled: isExpert && ozegoIds.length > 0,
     queryFn: () => fetchOzegoVariants(ozegoIds),
   });
   const variantsByOzego: Map<string, OzegoVariant[]> = ozegoVariantsQuery.data ?? new Map();
@@ -679,7 +679,7 @@ function ProspectComparison() {
             {prospectQuery.data?.notes || "Importez les factures fournisseurs de ce prospect."}
           </p>
         </div>
-        {isAdmin ? (
+        {isExpert ? (
           <div className="flex flex-wrap items-end gap-3">
             <div className="grid gap-1">
               <Label htmlFor="prospect-status">Statut</Label>
@@ -981,7 +981,7 @@ function ProspectComparison() {
                 return (
                   <div key={invoice.id} className="flex flex-wrap items-center gap-4 px-6 py-4">
                     <div className="min-w-56 flex-1">
-                      {isAdmin ? (
+                      {isExpert ? (
                         <Link
                           to="/factures/$id"
                           params={{ id: invoice.id }}
@@ -997,19 +997,19 @@ function ProspectComparison() {
                       <p className="text-sm text-muted-foreground">
                         {invoice.invoice_number ? `N° ${invoice.invoice_number} · ` : ""}
                         {shortDate(invoice.invoice_date ?? invoice.created_at)}
-                        {isAdmin ? ` · ${count} ligne${count > 1 ? "s" : ""}` : ""}
+                        {isExpert ? ` · ${count} ligne${count > 1 ? "s" : ""}` : ""}
                       </p>
                       {invoice.error_message ? (
                         <p className="mt-1 text-xs text-destructive">{invoice.error_message}</p>
                       ) : null}
                     </div>
-                    {isAdmin ? (
+                    {isExpert ? (
                       <span className="tabular-nums font-medium">{euro(invoice.total_ht)}</span>
                     ) : null}
                     <Badge className={status.className} variant="secondary">
                       {status.label}
                     </Badge>
-                    {isAdmin ? (
+                    {isExpert ? (
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"

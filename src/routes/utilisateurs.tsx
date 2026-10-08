@@ -28,7 +28,7 @@ export const Route = createFileRoute("/utilisateurs")({
   component: UsersPage,
 });
 
-const ROLE_LABEL: Record<AppRole, string> = { expert: "Expert", admin: "Administrateur" };
+const ROLE_LABEL: Record<AppRole, string> = { commercial: "Commercial", expert: "Expert" };
 
 function UsersPage() {
   const queryClient = useQueryClient();
@@ -40,7 +40,7 @@ function UsersPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<AppRole>("expert");
+  const [role, setRole] = useState<AppRole>("commercial");
 
   const usersQuery = useQuery({
     queryKey: ["users"],
@@ -56,7 +56,7 @@ function UsersPage() {
       toast.success("Compte créé");
       setEmail("");
       setPassword("");
-      setRole("expert");
+      setRole("commercial");
       void refresh();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -80,11 +80,11 @@ function UsersPage() {
   const users = usersQuery.data ?? [];
 
   return (
-    <AppShell adminOnly>
+    <AppShell expertOnly>
       <div className="mb-8">
         <h1 className="font-display text-3xl font-semibold">Utilisateurs</h1>
         <p className="mt-1 text-muted-foreground">
-          Un expert crée des comparatifs et importe des factures. Un administrateur fait en plus le
+          Un commercial crée des comparatifs et importe des factures. Un expert fait en plus le
           rapprochement et gère le catalogue, les réglages et les comptes.
         </p>
       </div>
@@ -120,8 +120,8 @@ function UsersPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="commercial">{ROLE_LABEL.commercial}</SelectItem>
                 <SelectItem value="expert">{ROLE_LABEL.expert}</SelectItem>
-                <SelectItem value="admin">{ROLE_LABEL.admin}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -168,8 +168,8 @@ function UsersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="commercial">{ROLE_LABEL.commercial}</SelectItem>
                         <SelectItem value="expert">{ROLE_LABEL.expert}</SelectItem>
-                        <SelectItem value="admin">{ROLE_LABEL.admin}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button

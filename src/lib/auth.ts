@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "expert" | "admin";
+export type AppRole = "commercial" | "expert";
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -42,7 +42,7 @@ export function useAuth() {
     session,
     email: session?.user.email ?? null,
     role,
-    isAdmin: role === "admin",
+    isExpert: role === "expert",
     loading: sessionLoading || (Boolean(userId) && profileQuery.isLoading),
   };
 }

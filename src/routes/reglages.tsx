@@ -96,7 +96,7 @@ function SettingsPage() {
   }
 
   return (
-    <AppShell adminOnly>
+    <AppShell expertOnly>
       <div className="mb-8">
         <h1 className="font-display text-3xl font-semibold">Réglages</h1>
         <p className="mt-1 text-muted-foreground">

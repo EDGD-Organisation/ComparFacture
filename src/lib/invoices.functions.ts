@@ -11,7 +11,7 @@ export const processInvoice = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => IdInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["expert", "admin"]);
+    await requireRole(context.supabase, context.userId, ["commercial", "expert"]);
     const { runInvoiceProcessing } = await import("./invoices.server");
     return runInvoiceProcessing(data.invoiceId);
   });
@@ -21,7 +21,7 @@ export const rematchInvoice = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => IdInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     const { runInvoiceRematch } = await import("./invoices.server");
     return runInvoiceRematch(data.invoiceId);
   });

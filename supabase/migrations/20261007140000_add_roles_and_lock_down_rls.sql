@@ -2,6 +2,9 @@
 -- "admin" (everything an expert can do, plus matching/validation, catalogue, settings and
 -- user management). Replaces the previous wide-open anon policies.
 --
+-- NOTE: the roles were renamed right after this was applied (admin -> expert, expert ->
+-- commercial) by 20261008100000_rename_roles_expert_commercial.sql — don't edit this file.
+--
 -- WARNING: once applied, the app is unreachable without a signed-in user that has a row in
 -- public.profiles. Create the first admin right after applying (see HANDOFF.md).
 

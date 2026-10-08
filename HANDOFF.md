@@ -1,4 +1,4 @@
-# Handoff — 2026-10-07 (rôles expert/admin ajoutés)
+# Handoff — 2026-10-07 (rôles commercial/expert ajoutés)
 
 Working notes for whoever (human or agent) picks this project up next. This is a point-in-time
 status snapshot, not permanent documentation — **CLAUDE.md stays the authoritative technical
@@ -85,9 +85,9 @@ what's still open. Delete or replace it once it's stale.
 12. **Nettoyage post-incident** (2026-10-07): secrets retirés de `settings.local.json`, image Docker allégée
     (voir Open items).
 
-13. **Authentification + rôles expert/admin** (2026-10-07, code écrit, **migration pas encore appliquée**):
-    connexion email/mot de passe (`/connexion`), rôles `expert` (crée des comparatifs + upload de
-    factures, voit liste/statuts) et `admin` (tout, y compris rapprochement, catalogue, réglages,
+13. **Authentification + rôles commercial/expert** (2026-10-07, code écrit, **migration pas encore appliquée**):
+    connexion email/mot de passe (`/connexion`), rôles `commercial` (crée des comparatifs + upload de
+    factures, voit liste/statuts) et `expert` (= administrateur: tout, y compris rapprochement, catalogue, réglages,
     page `/utilisateurs` pour créer les comptes). Migration
     `supabase/migrations/20261007140000_add_roles_and_lock_down_rls.sql` (table `profiles`,
     `prospects.created_by`, remplace toutes les politiques RLS `open_*`). Server functions protégées
@@ -97,21 +97,27 @@ what's still open. Delete or replace it once it's stale.
 
 ## Open items for the next agent
 
+- **Migration de renommage des rôles** (`20261008100000_rename_roles_expert_commercial.sql`): la
+  migration `20261007140000` a déjà été exécutée par l'utilisateur avec les anciens noms
+  (admin/expert); celle-ci les convertit (admin -> expert, expert -> commercial) et recrée
+  fonctions + politiques. **À exécuter dans le SQL Editor** (ne pas rejouer `20261007140000`).
+  Si le compte ozego@gmail.com a déjà été inséré avec le rôle `admin`, il devient `expert`
+  automatiquement; sinon utiliser la requête ci-dessous avec le rôle `expert`.
 - **À FAIRE pour mettre l'auth en service (dans cet ordre)**:
-  1. Créer le premier compte admin dans Supabase Studio (Authentication > Users > Add user, email +
+  1. Créer le premier compte expert dans Supabase Studio (Authentication > Users > Add user, email +
      mot de passe, "Auto confirm").
   2. Coller et exécuter la migration `20261007140000_add_roles_and_lock_down_rls.sql` dans le SQL
      Editor (dès cet instant, l'app actuelle sans connexion ne fonctionne plus).
-  3. Donner le rôle admin à ce compte:
-     `INSERT INTO public.profiles (user_id, email, role) SELECT id, email, 'admin' FROM auth.users WHERE email = 'ozego@gmail.com';`
+  3. Donner le rôle expert à ce compte:
+     `INSERT INTO public.profiles (user_id, email, role) SELECT id, email, 'expert' FROM auth.users WHERE email = 'ozego@gmail.com';`
   4. Déployer le code (merge sur `main`). Vérifier que `SUPABASE_SERVICE_ROLE_KEY` est bien dans le
-     `.env` du VPS (déjà utilisé par la synchro ERP), puis tester: connexion admin, création d'un
-     compte expert depuis `/utilisateurs`, connexion expert (upload OK, pas d'accès au reste).
+     `.env` du VPS (déjà utilisé par la synchro ERP), puis tester: connexion expert, création d'un
+     compte commercial depuis `/utilisateurs`, connexion commercial (upload OK, pas d'accès au reste).
   5. Régénérer `types.ts` (`bunx supabase gen types typescript --project-id ...`): `profiles` et
      `prospects.created_by` y ont été ajoutés à la main en attendant.
 - **Sécurité**: le Storage et les RPC (`search_catalog`, `cheapest_by_ozego`...) ne sont plus
   accessibles sans rôle; en local, `.env.local` doit contenir `SUPABASE_SERVICE_ROLE_KEY`.
-- **Plus tard**: restreindre les experts à leurs propres comparatifs (voir CLAUDE.md).
+- **Plus tard**: restreindre les commerciaux à leurs propres comparatifs (voir CLAUDE.md).
 
 - **Factures bloquées en `processing`**: résolu (confirmé par l’utilisateur le 2026-10-07).
 - **Secrets dans `.claude/settings.local.json`**: les 16 entrées d’allowlist contenant des clés (anon, service-role,

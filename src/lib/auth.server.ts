@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 
-export type AppRole = "expert" | "admin";
+export type AppRole = "commercial" | "expert";
 
 // `supabase` is the user-scoped client from requireSupabaseAuth: it can read the caller's own
 // profiles row under RLS, which is all this needs.
@@ -18,7 +18,8 @@ export async function requireRole(
     .maybeSingle();
   if (error) throw new Error(error.message);
   const role = data?.role;
-  if (role !== "expert" && role !== "admin") throw new Error("Accès refusé : compte sans rôle");
+  if (role !== "commercial" && role !== "expert")
+    throw new Error("Accès refusé : compte sans rôle");
   if (!allowed.includes(role)) throw new Error("Accès refusé : droits insuffisants");
   return role;
 }

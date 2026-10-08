@@ -55,7 +55,7 @@ export const Route = createFileRoute("/")({
 function ProspectsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isExpert } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
@@ -207,7 +207,7 @@ function ProspectsPage() {
                                 </p>
                               ) : null}
                             </div>
-                            {isAdmin ? (
+                            {isExpert ? (
                               <>
                                 <Select
                                   value={statusMeta(prospect.status).value}

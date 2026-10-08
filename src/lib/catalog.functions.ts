@@ -24,7 +24,7 @@ export const importCatalog = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ImportInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     const { runCatalogImport } = await import("./catalog.server");
     return runCatalogImport(data);
   });
@@ -90,7 +90,7 @@ export const syncCatalogFromErp = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SyncInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     let url = data.url;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: settings }, { data: secrets }] = await Promise.all([
@@ -216,7 +216,7 @@ export const getErpApiKeyStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin.from("app_secrets").select("erp_api_key").maybeSingle();
     return { configured: Boolean(data?.erp_api_key) };
@@ -229,7 +229,7 @@ export const saveErpApiKey = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SaveApiKeyInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("app_secrets")

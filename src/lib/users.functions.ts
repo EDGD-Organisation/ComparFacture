@@ -3,13 +3,13 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const RoleSchema = z.enum(["expert", "admin"]);
+const RoleSchema = z.enum(["commercial", "expert"]);
 
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     const users = await import("./users.server");
     return users.listUsers();
   });
@@ -25,7 +25,7 @@ export const createUser = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => CreateUserInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     const users = await import("./users.server");
     return users.createUser(data);
   });
@@ -37,7 +37,7 @@ export const setUserRole = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SetRoleInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     if (data.userId === context.userId)
       throw new Error("Vous ne pouvez pas changer votre propre rôle");
     const users = await import("./users.server");
@@ -52,7 +52,7 @@ export const deleteUser = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => DeleteUserInput.parse(input))
   .handler(async ({ data, context }) => {
     const { requireRole } = await import("./auth.server");
-    await requireRole(context.supabase, context.userId, ["admin"]);
+    await requireRole(context.supabase, context.userId, ["expert"]);
     if (data.userId === context.userId)
       throw new Error("Vous ne pouvez pas supprimer votre propre compte");
     const users = await import("./users.server");

@@ -9,20 +9,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
 const NAV = [
-  { to: "/", label: "Comparatifs", icon: FileText, adminOnly: false },
-  { to: "/catalogue", label: "Catalogue", icon: Package, adminOnly: true },
-  { to: "/reglages", label: "Réglages", icon: Settings, adminOnly: true },
-  { to: "/utilisateurs", label: "Utilisateurs", icon: UserCog, adminOnly: true },
+  { to: "/", label: "Comparatifs", icon: FileText, expertOnly: false },
+  { to: "/catalogue", label: "Catalogue", icon: Package, expertOnly: true },
+  { to: "/reglages", label: "Réglages", icon: Settings, expertOnly: true },
+  { to: "/utilisateurs", label: "Utilisateurs", icon: UserCog, expertOnly: true },
 ] as const;
 
 export function AppShell({
   children,
-  adminOnly = false,
+  expertOnly = false,
 }: {
   children: ReactNode;
-  adminOnly?: boolean;
+  expertOnly?: boolean;
 }) {
-  const { session, email, role, isAdmin, loading } = useAuth();
+  const { session, email, role, isExpert, loading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -57,7 +57,7 @@ export function AppShell({
             </span>
           </Link>
           <nav className="flex flex-1 items-center gap-1">
-            {NAV.filter((item) => isAdmin || !item.adminOnly).map((item) => (
+            {NAV.filter((item) => isExpert || !item.expertOnly).map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -73,7 +73,7 @@ export function AppShell({
             <span className="hidden text-right text-xs leading-tight text-muted-foreground sm:block">
               {email}
               <span className="block font-medium text-foreground">
-                {role === "admin" ? "Administrateur" : role === "expert" ? "Expert" : ""}
+                {role === "expert" ? "Expert" : role === "commercial" ? "Commercial" : ""}
               </span>
             </span>
             <Button
@@ -91,13 +91,13 @@ export function AppShell({
         {!role ? (
           <Card>
             <CardContent className="px-6 py-10 text-center text-sm text-muted-foreground">
-              Ce compte n'a pas encore de rôle. Contactez un administrateur.
+              Ce compte n'a pas encore de rôle. Contactez un expert.
             </CardContent>
           </Card>
-        ) : adminOnly && !isAdmin ? (
+        ) : expertOnly && !isExpert ? (
           <Card>
             <CardContent className="px-6 py-10 text-center text-sm text-muted-foreground">
-              Cette page est réservée aux administrateurs.
+              Cette page est réservée aux experts.
             </CardContent>
           </Card>
         ) : (
