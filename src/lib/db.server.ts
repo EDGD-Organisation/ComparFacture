@@ -1,20 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+// The invoice/catalog pipeline reads and writes tables that row-level security restricts to
+// admins (and, for processing, runs on behalf of experts who can't read invoice_lines). Callers
+// are server functions that check the signed-in user's role first (see auth.server.ts), so this
+// uses the service-role client rather than the anon key.
 export function serverSupabase() {
-  const url = process.env["SUPABASE_URL"]!;
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  return createClient<Database>(url, key, {
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    global: {
-      fetch: (input, init) => {
-        const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
-          headers.delete("Authorization");
-        }
-        headers.set("apikey", key);
-        return fetch(input, { ...init, headers });
-      },
-    },
-  });
+  return supabaseAdmin;
 }

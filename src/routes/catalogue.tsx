@@ -88,7 +88,7 @@ function CatalogPage() {
   });
 
   return (
-    <AppShell>
+    <AppShell adminOnly>
       <div className="mb-8">
         <h1 className="font-display text-3xl font-semibold">Catalogue produits</h1>
         <p className="mt-1 text-muted-foreground">

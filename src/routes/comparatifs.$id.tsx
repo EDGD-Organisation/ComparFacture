@@ -40,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PROSPECT_STATUSES, statusMeta } from "@/lib/prospect-status";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { processInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, percent, shortDate } from "@/lib/format";
 import {
@@ -122,6 +123,7 @@ function ProspectComparison() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const process = useServerFn(processInvoice);
+  const { isAdmin } = useAuth();
 
   const prospectQuery = useQuery({
     queryKey: ["prospect", id],
@@ -154,6 +156,7 @@ function ProspectComparison() {
 
   const suppliersQuery = useQuery({
     queryKey: ["catalog-suppliers"],
+    enabled: isAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("distinct_catalog_suppliers");
       if (error) throw new Error(error.message);
@@ -178,6 +181,7 @@ function ProspectComparison() {
 
   const settingsQuery = useQuery({
     queryKey: ["settings"],
+    enabled: isAdmin,
     queryFn: async () => {
       const { data } = await supabase
         .from("app_settings")
@@ -189,6 +193,7 @@ function ProspectComparison() {
 
   const analysisQuery = useQuery({
     queryKey: ["prospect-lines", id],
+    enabled: isAdmin,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoice_lines")
@@ -276,14 +281,14 @@ function ProspectComparison() {
 
   const ozegoQuery = useQuery({
     queryKey: ["ozego-best", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: ozegoIds.length > 0,
+    enabled: isAdmin && ozegoIds.length > 0,
     queryFn: () => fetchCheapestByOzego(ozegoIds),
   });
   const bestByOzego: Map<string, OzegoBest> = ozegoQuery.data ?? new Map();
 
   const ozegoVariantsQuery = useQuery({
     queryKey: ["ozego-variants", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: ozegoIds.length > 0,
+    enabled: isAdmin && ozegoIds.length > 0,
     queryFn: () => fetchOzegoVariants(ozegoIds),
   });
   const variantsByOzego: Map<string, OzegoVariant[]> = ozegoVariantsQuery.data ?? new Map();
@@ -674,97 +679,99 @@ function ProspectComparison() {
             {prospectQuery.data?.notes || "Importez les factures fournisseurs de ce prospect."}
           </p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid gap-1">
-            <Label htmlFor="prospect-status">Statut</Label>
-            <Select
-              value={statusMeta(prospectQuery.data?.status).value}
-              onValueChange={(value) => void updateProspect({ status: value })}
-            >
-              <SelectTrigger id="prospect-status" className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PROSPECT_STATUSES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {isAdmin ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid gap-1">
+              <Label htmlFor="prospect-status">Statut</Label>
+              <Select
+                value={statusMeta(prospectQuery.data?.status).value}
+                onValueChange={(value) => void updateProspect({ status: value })}
+              >
+                <SelectTrigger id="prospect-status" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROSPECT_STATUSES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="prospect-delivery">Livraison souhaitée</Label>
+              <Input
+                id="prospect-delivery"
+                type="date"
+                className="w-44"
+                value={prospectQuery.data?.delivery_date ?? ""}
+                onChange={(event) =>
+                  void updateProspect({ delivery_date: event.target.value || null })
+                }
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="prospect-preferred-suppliers">Fournisseurs préférés</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="prospect-preferred-suppliers"
+                    variant="outline"
+                    role="combobox"
+                    className="w-72 justify-between font-normal"
+                  >
+                    <span className="truncate text-left">
+                      {preferredSuppliers.length > 0
+                        ? `${preferredSuppliers.length} sélectionné${preferredSuppliers.length > 1 ? "s" : ""}`
+                        : "Aucun fournisseur choisi"}
+                    </span>
+                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un fournisseur…" />
+                    <CommandList>
+                      <CommandEmpty>Aucun fournisseur trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {(suppliersQuery.data ?? []).map((name) => (
+                          <CommandItem key={name} onSelect={() => togglePreferredSupplier(name)}>
+                            <Check
+                              className={cn(
+                                "mr-2 size-4",
+                                preferredSuppliers.includes(name) ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            {name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {preferredSuppliers.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {preferredSuppliers.map((name) => (
+                    <Badge key={name} variant="secondary" className="gap-1 pr-1 font-normal">
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => togglePreferredSupplier(name)}
+                        aria-label={`Retirer ${name}`}
+                        className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Utilisés pour l'onglet Ozego.</p>
+            </div>
           </div>
-          <div className="grid gap-1">
-            <Label htmlFor="prospect-delivery">Livraison souhaitée</Label>
-            <Input
-              id="prospect-delivery"
-              type="date"
-              className="w-44"
-              value={prospectQuery.data?.delivery_date ?? ""}
-              onChange={(event) =>
-                void updateProspect({ delivery_date: event.target.value || null })
-              }
-            />
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="prospect-preferred-suppliers">Fournisseurs préférés</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="prospect-preferred-suppliers"
-                  variant="outline"
-                  role="combobox"
-                  className="w-72 justify-between font-normal"
-                >
-                  <span className="truncate text-left">
-                    {preferredSuppliers.length > 0
-                      ? `${preferredSuppliers.length} sélectionné${preferredSuppliers.length > 1 ? "s" : ""}`
-                      : "Aucun fournisseur choisi"}
-                  </span>
-                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-0">
-                <Command>
-                  <CommandInput placeholder="Rechercher un fournisseur…" />
-                  <CommandList>
-                    <CommandEmpty>Aucun fournisseur trouvé.</CommandEmpty>
-                    <CommandGroup>
-                      {(suppliersQuery.data ?? []).map((name) => (
-                        <CommandItem key={name} onSelect={() => togglePreferredSupplier(name)}>
-                          <Check
-                            className={cn(
-                              "mr-2 size-4",
-                              preferredSuppliers.includes(name) ? "opacity-100" : "opacity-0",
-                            )}
-                          />
-                          {name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {preferredSuppliers.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {preferredSuppliers.map((name) => (
-                  <Badge key={name} variant="secondary" className="gap-1 pr-1 font-normal">
-                    {name}
-                    <button
-                      type="button"
-                      onClick={() => togglePreferredSupplier(name)}
-                      aria-label={`Retirer ${name}`}
-                      className="rounded-full p-0.5 hover:bg-muted-foreground/20"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">Utilisés pour l'onglet Ozego.</p>
-          </div>
-        </div>
+        ) : null}
       </div>
 
       <label
@@ -974,53 +981,63 @@ function ProspectComparison() {
                 return (
                   <div key={invoice.id} className="flex flex-wrap items-center gap-4 px-6 py-4">
                     <div className="min-w-56 flex-1">
-                      <Link
-                        to="/factures/$id"
-                        params={{ id: invoice.id }}
-                        className="font-medium hover:text-primary"
-                      >
-                        {invoice.supplier_name || invoice.file_name || "Facture"}
-                      </Link>
+                      {isAdmin ? (
+                        <Link
+                          to="/factures/$id"
+                          params={{ id: invoice.id }}
+                          className="font-medium hover:text-primary"
+                        >
+                          {invoice.supplier_name || invoice.file_name || "Facture"}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">
+                          {invoice.supplier_name || invoice.file_name || "Facture"}
+                        </span>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         {invoice.invoice_number ? `N° ${invoice.invoice_number} · ` : ""}
-                        {shortDate(invoice.invoice_date ?? invoice.created_at)} · {count} ligne
-                        {count > 1 ? "s" : ""}
+                        {shortDate(invoice.invoice_date ?? invoice.created_at)}
+                        {isAdmin ? ` · ${count} ligne${count > 1 ? "s" : ""}` : ""}
                       </p>
                       {invoice.error_message ? (
                         <p className="mt-1 text-xs text-destructive">{invoice.error_message}</p>
                       ) : null}
                     </div>
-                    <span className="tabular-nums font-medium">{euro(invoice.total_ht)}</span>
+                    {isAdmin ? (
+                      <span className="tabular-nums font-medium">{euro(invoice.total_ht)}</span>
+                    ) : null}
                     <Badge className={status.className} variant="secondary">
                       {status.label}
                     </Badge>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Voir le fichier original"
-                        onClick={() => void viewInvoiceFile(invoice.file_path)}
-                      >
-                        <Download className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Relancer l'analyse"
-                        disabled={analyse.isPending}
-                        onClick={() => analyse.mutate(invoice.id)}
-                      >
-                        <RefreshCw className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Supprimer"
-                        onClick={() => void remove(invoice.id, invoice.file_path)}
-                      >
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
-                    </div>
+                    {isAdmin ? (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Voir le fichier original"
+                          onClick={() => void viewInvoiceFile(invoice.file_path)}
+                        >
+                          <Download className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Relancer l'analyse"
+                          disabled={analyse.isPending}
+                          onClick={() => analyse.mutate(invoice.id)}
+                        >
+                          <RefreshCw className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Supprimer"
+                          onClick={() => void remove(invoice.id, invoice.file_path)}
+                        >
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}

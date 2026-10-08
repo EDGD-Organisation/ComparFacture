@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { shortDate } from "@/lib/format";
 import { PROSPECT_STATUSES, statusMeta, type ProspectStatus } from "@/lib/prospect-status";
 
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/")({
 function ProspectsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
@@ -205,31 +207,35 @@ function ProspectsPage() {
                                 </p>
                               ) : null}
                             </div>
-                            <Select
-                              value={statusMeta(prospect.status).value}
-                              onValueChange={(value) =>
-                                void updateStatus(prospect.id, value as ProspectStatus)
-                              }
-                            >
-                              <SelectTrigger className="w-40" aria-label="Statut du comparatif">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {PROSPECT_STATUSES.map((s) => (
-                                  <SelectItem key={s.value} value={s.value}>
-                                    {s.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Supprimer le comparatif"
-                              onClick={() => void remove(prospect.id)}
-                            >
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
+                            {isAdmin ? (
+                              <>
+                                <Select
+                                  value={statusMeta(prospect.status).value}
+                                  onValueChange={(value) =>
+                                    void updateStatus(prospect.id, value as ProspectStatus)
+                                  }
+                                >
+                                  <SelectTrigger className="w-40" aria-label="Statut du comparatif">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {PROSPECT_STATUSES.map((s) => (
+                                      <SelectItem key={s.value} value={s.value}>
+                                        {s.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Supprimer le comparatif"
+                                  onClick={() => void remove(prospect.id)}
+                                >
+                                  <Trash2 className="size-4 text-destructive" />
+                                </Button>
+                              </>
+                            ) : null}
                           </div>
                         );
                       })}

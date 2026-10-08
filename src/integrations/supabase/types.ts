@@ -351,9 +351,31 @@ export type Database = {
           },
         ];
       };
+      profiles: {
+        Row: {
+          created_at: string;
+          email: string | null;
+          role: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          email?: string | null;
+          role?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          email?: string | null;
+          role?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       prospects: {
         Row: {
           created_at: string;
+          created_by: string | null;
           delivery_date: string | null;
           id: string;
           name: string;
@@ -364,6 +386,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          created_by?: string | null;
           delivery_date?: string | null;
           id?: string;
           name: string;
@@ -374,6 +397,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          created_by?: string | null;
           delivery_date?: string | null;
           id?: string;
           name?: string;

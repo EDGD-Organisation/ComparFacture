@@ -5,6 +5,7 @@
       "Bash(dd if=\".output/server/_libs/@huggingface/transformers+[...].mjs\" bs=1 skip=277800 count=400)",
       "Read(//tmp/docker-sim/**)",
       "Bash(node -e ' *)",
+<<<<<<< Updated upstream
       "Bash(mkdir -p /tmp/prod-deps-test)",
       "Bash(cp \"/c/Users/Utilisateur/Documents/GH/Invoice Matcher/package.json\" \"/c/Users/Utilisateur/Documents/GH/Invoice Matcher/bun.lock\" /tmp/prod-deps-test/)",
       "Read(//tmp/**)",
@@ -12,6 +13,25 @@
     ],
     "additionalDirectories": [
       "\\tmp"
+=======
+      "Bash(gh auth *)",
+      "Bash(gh run *)",
+      "PowerShell(gh --version 2>&1)",
+      "Bash(curl -s \"https://api.github.com/repos/EDGD-Organisation/ComparFacture\")",
+      "Bash(curl -s \"https://api.github.com/repos/EDGD-Organisation/ComparFacture/actions/workflows/ci.yml/runs?per_page=3\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://api.github.com/repos/EDGD-Organisation/ComparFacture/actions/workflows/ci.yml/runs?per_page=3\" -o ./_runs.json)",
+      "Bash(rm -f ./_runs.json)",
+      "Bash(curl -s \"https://api.github.com/repos/EDGD-Organisation/ComparFacture/actions/runs/37281490464/jobs\" -o ./_jobs.json)",
+      "Bash(rm -f ./_jobs.json)",
+      "Bash(cd \"/c/Users/Utilisateur/Documents/GH/Invoice Matcher\" && file Dockerfile src/routes/factures.\\\\$id.tsx package.json README.md 2>&1 | head -10; echo \"---\"; cat -A package.json | head -1)",
+      "Read(//c/Users/Utilisateur/Documents/GH/Invoice Matcher/src/routes/**)",
+      "Bash(curl -sL \"https://api.github.com/repos/EDGD-Organisation/ComparFacture/actions/runs/37281490464/jobs\" -o ./_jobs.json)",
+      "Bash(curl -sL \"https://api.github.com/repos/EDGD-Organisation/ComparFacture/actions/jobs/111670368865/logs\" -o ./_log.txt)",
+      "Bash(git clone *)",
+      "Bash(rm -rf /tmp/final-check)",
+      "Bash(NITRO_PRESET=node-server VITE_SUPABASE_URL=https://example.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=test VITE_SUPABASE_PROJECT_ID=test timeout 180 bun run build)"
+>>>>>>> Stashed changes
     ]
   }
 }

@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 const ProductInput = z.object({
   reference: z.string().min(1),
   label: z.string().min(1),
@@ -18,8 +20,11 @@ const ImportInput = z.object({
 });
 
 export const importCatalog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ImportInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { requireRole } = await import("./auth.server");
+    await requireRole(context.supabase, context.userId, ["admin"]);
     const { runCatalogImport } = await import("./catalog.server");
     return runCatalogImport(data);
   });
@@ -81,8 +86,11 @@ async function fetchJson(url: string, apiKey: string | null) {
 }
 
 export const syncCatalogFromErp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SyncInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { requireRole } = await import("./auth.server");
+    await requireRole(context.supabase, context.userId, ["admin"]);
     let url = data.url;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: settings }, { data: secrets }] = await Promise.all([
@@ -204,17 +212,24 @@ export const syncCatalogFromErp = createServerFn({ method: "POST" })
 // erp_api_key never reaches the browser: it lives in app_secrets (service-role only,
 // see the migration). The settings page only ever learns whether a key is configured,
 // never its value, and can only replace it — not read it back.
-export const getErpApiKeyStatus = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("app_secrets").select("erp_api_key").maybeSingle();
-  return { configured: Boolean(data?.erp_api_key) };
-});
+export const getErpApiKeyStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireRole } = await import("./auth.server");
+    await requireRole(context.supabase, context.userId, ["admin"]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin.from("app_secrets").select("erp_api_key").maybeSingle();
+    return { configured: Boolean(data?.erp_api_key) };
+  });
 
 const SaveApiKeyInput = z.object({ apiKey: z.string().min(1) });
 
 export const saveErpApiKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SaveApiKeyInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { requireRole } = await import("./auth.server");
+    await requireRole(context.supabase, context.userId, ["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("app_secrets")

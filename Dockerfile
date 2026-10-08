@@ -38,6 +38,13 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 
+# onnxruntime-node ships prebuilt native binaries for every platform; the runtime image is
+# linux/x64 only, so drop the rest (~220MB). Only the platforms are removed, never the x64 one
+# that onnxruntime-node's loader requires at runtime.
+RUN find node_modules/onnxruntime-node/bin/napi-v6 -mindepth 2 -maxdepth 2 -type d \
+      ! -path '*/linux/x64' -exec rm -rf {} + \
+    && find node_modules/onnxruntime-node/bin/napi-v6 -mindepth 1 -maxdepth 1 -type d -empty -delete
+
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 

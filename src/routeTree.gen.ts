@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CatalogueRouteImport } from './routes/catalogue'
+import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as ReglagesRouteImport } from './routes/reglages'
+import { Route as UtilisateursRouteImport } from './routes/utilisateurs'
 import { Route as ComparatifsIdRouteImport } from './routes/comparatifs.$id'
 import { Route as FacturesIdRouteImport } from './routes/factures.$id'
 
@@ -25,9 +27,19 @@ const CatalogueRoute = CatalogueRouteImport.update({
   path: '/catalogue',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReglagesRoute = ReglagesRouteImport.update({
   id: '/reglages',
   path: '/reglages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UtilisateursRoute = UtilisateursRouteImport.update({
+  id: '/utilisateurs',
+  path: '/utilisateurs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ComparatifsIdRoute = ComparatifsIdRouteImport.update({
@@ -44,14 +56,18 @@ const FacturesIdRoute = FacturesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/catalogue': typeof CatalogueRoute
+  '/connexion': typeof ConnexionRoute
   '/reglages': typeof ReglagesRoute
+  '/utilisateurs': typeof UtilisateursRoute
   '/comparatifs/$id': typeof ComparatifsIdRoute
   '/factures/$id': typeof FacturesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/catalogue': typeof CatalogueRoute
+  '/connexion': typeof ConnexionRoute
   '/reglages': typeof ReglagesRoute
+  '/utilisateurs': typeof UtilisateursRoute
   '/comparatifs/$id': typeof ComparatifsIdRoute
   '/factures/$id': typeof FacturesIdRoute
 }
@@ -59,21 +75,38 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/catalogue': typeof CatalogueRoute
+  '/connexion': typeof ConnexionRoute
   '/reglages': typeof ReglagesRoute
+  '/utilisateurs': typeof UtilisateursRoute
   '/comparatifs/$id': typeof ComparatifsIdRoute
   '/factures/$id': typeof FacturesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/catalogue' | '/reglages' | '/comparatifs/$id' | '/factures/$id'
+    | '/'
+    | '/catalogue'
+    | '/connexion'
+    | '/reglages'
+    | '/utilisateurs'
+    | '/comparatifs/$id'
+    | '/factures/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/catalogue' | '/reglages' | '/comparatifs/$id' | '/factures/$id'
+  to:
+    | '/'
+    | '/catalogue'
+    | '/connexion'
+    | '/reglages'
+    | '/utilisateurs'
+    | '/comparatifs/$id'
+    | '/factures/$id'
   id:
     | '__root__'
     | '/'
     | '/catalogue'
+    | '/connexion'
     | '/reglages'
+    | '/utilisateurs'
     | '/comparatifs/$id'
     | '/factures/$id'
   fileRoutesById: FileRoutesById
@@ -81,7 +114,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CatalogueRoute: typeof CatalogueRoute
+  ConnexionRoute: typeof ConnexionRoute
   ReglagesRoute: typeof ReglagesRoute
+  UtilisateursRoute: typeof UtilisateursRoute
   ComparatifsIdRoute: typeof ComparatifsIdRoute
   FacturesIdRoute: typeof FacturesIdRoute
 }
@@ -102,11 +137,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reglages': {
       id: '/reglages'
       path: '/reglages'
       fullPath: '/reglages'
       preLoaderRoute: typeof ReglagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/utilisateurs': {
+      id: '/utilisateurs'
+      path: '/utilisateurs'
+      fullPath: '/utilisateurs'
+      preLoaderRoute: typeof UtilisateursRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/comparatifs/$id': {
@@ -129,7 +178,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CatalogueRoute: CatalogueRoute,
+  ConnexionRoute: ConnexionRoute,
   ReglagesRoute: ReglagesRoute,
+  UtilisateursRoute: UtilisateursRoute,
   ComparatifsIdRoute: ComparatifsIdRoute,
   FacturesIdRoute: FacturesIdRoute,
 }

@@ -209,9 +209,29 @@ a `vector` embedding column — `384` dimensions locally, `1536` on the untouche
 API URL). Custom RPCs: `search_catalog` (trigram search), `match_catalog_embedding` (cosine
 similarity search), `cheapest_by_ozego`.
 
-There is currently no authentication gate in the UI (per the product plan, this is single-user/
-internal tooling for now), though the Supabase auth middleware/RLS plumbing exists and is wired
-into server functions.
+### Authentication & roles
+
+Email + password login (Supabase Auth, `/connexion`); accounts are created by an admin only (no
+public signup) from `/utilisateurs` (`users.functions.ts` -> `users.server.ts`, service-role).
+Two roles in `public.profiles.role`:
+
+- **expert** — creates comparatifs and uploads invoice files (which triggers extraction), sees the
+  comparatif list and each invoice's name/status. Nothing else: no invoice detail/matching page,
+  no price gaps, catalogue or settings, and no update/delete.
+- **admin** — everything an expert can do, plus matching/validation, deletion, catalogue,
+  settings and user management.
+
+Enforced in three places: RLS (`20261007140000_add_roles_and_lock_down_rls.sql`, helpers
+`is_admin()`/`is_expert()`; the old `open_*` anon policies are gone), server functions
+(`.middleware([requireSupabaseAuth])` + `requireRole` from `auth.server.ts` — every server fn must
+do this), and the UI (`useAuth()` in `src/lib/auth.ts`; `AppShell` redirects to `/connexion`,
+hides admin nav, and `<AppShell adminOnly>` blocks admin pages). RLS cannot hide columns, so
+experts can technically read `invoices` rows (totals included) — only the UI hides them; they have
+no policy on `invoice_lines`. Experts currently see all comparatifs; to restrict them to their own
+change `expert_select_prospects` to also require `created_by = auth.uid()` (`prospects.created_by`
+is already filled). `serverSupabase()` (`db.server.ts`) now returns the service-role client,
+since the anon key can no longer read these tables — so `SUPABASE_SERVICE_ROLE_KEY` is required
+wherever the pipeline runs, local dev included.
 
 ### Env vars
 

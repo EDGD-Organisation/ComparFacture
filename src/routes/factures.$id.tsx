@@ -745,7 +745,7 @@ function InvoiceDetail() {
   }
 
   return (
-    <AppShell>
+    <AppShell adminOnly>
       {invoice?.prospect_id ? (
         <Link
           to="/comparatifs/$id"
