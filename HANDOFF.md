@@ -95,6 +95,26 @@ what's still open. Delete or replace it once it's stale.
     Détails dans CLAUDE.md, section "Authentication & roles". `tsc` et `vite build` passent; non
     testé en conditions réelles (pas de Docker local).
 
+14. **Test comparatif Claude vs Gemini** (2026-10-16, aucune modif de prod): script
+    `scripts/compare-extraction.ts` (`bun run compare:extraction <fichiers> --out x.json`), SDK
+    `@anthropic-ai/sdk` en devDependency, `ANTHROPIC_API_KEY` dans `.env`. Sur 5 vraies factures
+    (`testfiles/`): Haiku 5.5 et Opus 5.5 lisent les 10 lignes de Scan17 (total 1679.26), Sonnet 5.5
+    n'en lit que 5 (total 803.73, auto-cohérent mais faux) -> le critère "somme des lignes = total
+    imprimé" ne détecte pas une page oubliée. Haiku 5.5: ~0,0015 $/facture (≈ Gemini), mais
+    invoice_number null sur Scan17. Gemini a répondu 503 sur les 5 fichiers (pas de comparaison
+    directe). Relancé le 2026-10-19: Gemini OK sur les 5 (lignes identiques à Haiku, mais total_ht
+    null sur Scan17), ~0,0014 $/facture (7455 tokens in, 3370 out; tarif 0,25/1,50 $ par M) contre
+    ~0,0015 $ pour Haiku 5.5; Gemini ~5,8 s vs ~9,6 s. Décision de migration non prise.
+
+15. **Messages d'erreur lisibles** (2026-10-20): `src/lib/errors.ts` (`friendlyError`) traduit toute
+    erreur technique (JSON Gemini 503, erreurs Supabase/RLS, réseau...) en phrase française;
+    `src/lib/toast-error.ts` (`toastError`) l'affiche en toast sonner en haut à droite (avec bouton
+    fermer) et remplace tous les `toast.error(error.message)`. `invoices.server.ts` stocke maintenant un
+    message lisible dans `invoices.error_message` (détail brut dans les logs serveur) et la liste des
+    factures applique aussi `friendlyError` (anciennes lignes en base contiennent encore le JSON brut).
+    Pages 404/erreur traduites en français. Décision: on reste sur Gemini (test Claude abandonné,
+    script `compare:extraction` conservé).
+
 ## Open items for the next agent
 
 - **Migration de renommage des rôles** (`20261008100000_rename_roles_expert_commercial.sql`): la

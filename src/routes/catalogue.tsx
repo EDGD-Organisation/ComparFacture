@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { syncCatalogFromErp } from "@/lib/catalog.functions";
 import { euro, shortDate } from "@/lib/format";
+import { toastError } from "@/lib/toast-error";
 import { stripAccents } from "@/lib/match-normalize";
 
 export const Route = createFileRoute("/catalogue")({
@@ -84,7 +85,7 @@ function CatalogPage() {
       queryClient.invalidateQueries({ queryKey: ["catalog"] });
       queryClient.invalidateQueries({ queryKey: ["catalog-count"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toastError(error),
   });
 
   return (

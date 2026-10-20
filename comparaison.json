@@ -1,0 +1,1556 @@
+[
+  {
+    "file": "Facture Marion 3.jpg",
+    "engine": "gemini-3.1-flash-lite",
+    "seconds": 4.2,
+    "error": "{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}"
+  },
+  {
+    "file": "Facture Marion 3.jpg",
+    "engine": "claude-haiku-5-5",
+    "seconds": 10.4,
+    "cost": 0.0014,
+    "lines": 8,
+    "sum": 323.89,
+    "totalHt": 323.89,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "SIRF",
+      "invoice_number": null,
+      "invoice_date": "2026-05-28",
+      "currency": "EUR",
+      "total_ht": 323.89,
+      "total_ttc": 341.7,
+      "lines": [
+        {
+          "supplier_reference": "09CS",
+          "label": "EPIN. PALET BRANCHE EQUI 2.5K B",
+          "quantity": 35,
+          "unit": "KG",
+          "unit_price": 2,
+          "discount_percent": null,
+          "line_total": 70
+        },
+        {
+          "supplier_reference": "41CS",
+          "label": "BEIGNET CHOCO/NOISETTE 75GX48Q",
+          "quantity": 3,
+          "unit": "CT",
+          "unit_price": 20,
+          "discount_percent": null,
+          "line_total": 60
+        },
+        {
+          "supplier_reference": "20CS",
+          "label": "OIGNON CUBE 2.5 KG",
+          "quantity": 20,
+          "unit": "KG",
+          "unit_price": 1.49,
+          "discount_percent": null,
+          "line_total": 29.8
+        },
+        {
+          "supplier_reference": "38CS",
+          "label": "ECHALOTE COUPEE 1 KG",
+          "quantity": 2,
+          "unit": "KG",
+          "unit_price": 4.7,
+          "discount_percent": null,
+          "line_total": 9.4
+        },
+        {
+          "supplier_reference": "37CS",
+          "label": "AIL COUPE 1 KG IMP",
+          "quantity": 1,
+          "unit": "KG",
+          "unit_price": 5.8,
+          "discount_percent": null,
+          "line_total": 5.8
+        },
+        {
+          "supplier_reference": "51CS",
+          "label": "PERSIL COUPE 1 KG",
+          "quantity": 1,
+          "unit": "KG",
+          "unit_price": 4.14,
+          "discount_percent": null,
+          "line_total": 4.14
+        },
+        {
+          "supplier_reference": "52CS",
+          "label": "CHOU CREME PARF. VANIL 40GX27Q",
+          "quantity": 13,
+          "unit": "CT",
+          "unit_price": 10.5,
+          "discount_percent": null,
+          "line_total": 136.5
+        },
+        {
+          "supplier_reference": "52CS",
+          "label": "BRUNOISE LEGUMES 2.5KG UE Q",
+          "quantity": 5,
+          "unit": "KG",
+          "unit_price": 1.65,
+          "discount_percent": null,
+          "line_total": 8.25
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion 3.jpg",
+    "engine": "claude-sonnet-5-5",
+    "seconds": 8.7,
+    "cost": 0.0175,
+    "lines": 8,
+    "sum": 323.89,
+    "totalHt": 323.89,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "SIRF - Société Industrielle Raison Frères (DS Restauration)",
+      "invoice_number": "999215",
+      "invoice_date": "2026-05-28",
+      "currency": "EUR",
+      "total_ht": 323.89,
+      "total_ttc": 341.7,
+      "lines": [
+        {
+          "supplier_reference": "09CS",
+          "label": "EPIN. PALET BRANCHE EQUI 2.5K B",
+          "quantity": 35,
+          "unit": "KG",
+          "unit_price": 2,
+          "discount_percent": null,
+          "line_total": 70
+        },
+        {
+          "supplier_reference": "41CS",
+          "label": "BEIGNET CHOCO/NOISETTE 75GX48Q",
+          "quantity": 3,
+          "unit": "CT",
+          "unit_price": 20,
+          "discount_percent": null,
+          "line_total": 60
+        },
+        {
+          "supplier_reference": "20CS",
+          "label": "OIGNON CUBE 2.5 KG",
+          "quantity": 20,
+          "unit": "KG",
+          "unit_price": 1.49,
+          "discount_percent": null,
+          "line_total": 29.8
+        },
+        {
+          "supplier_reference": "38CS",
+          "label": "ECHALOTE COUPEE 1 KG",
+          "quantity": 2,
+          "unit": "KG",
+          "unit_price": 4.7,
+          "discount_percent": null,
+          "line_total": 9.4
+        },
+        {
+          "supplier_reference": "37CS",
+          "label": "AIL COUPE 1 KG IMP",
+          "quantity": 1,
+          "unit": "KG",
+          "unit_price": 5.8,
+          "discount_percent": null,
+          "line_total": 5.8
+        },
+        {
+          "supplier_reference": "51CS",
+          "label": "PERSIL COUPE 1 KG",
+          "quantity": 1,
+          "unit": "KG",
+          "unit_price": 4.14,
+          "discount_percent": null,
+          "line_total": 4.14
+        },
+        {
+          "supplier_reference": "52CS",
+          "label": "CHOU CREME PARF. VANIL 40GXx270",
+          "quantity": 13,
+          "unit": "CT",
+          "unit_price": 10.5,
+          "discount_percent": null,
+          "line_total": 136.5
+        },
+        {
+          "supplier_reference": "52CS",
+          "label": "BRUNOISE LEGUMES 2.5KG UE Q",
+          "quantity": 5,
+          "unit": "KG",
+          "unit_price": 1.65,
+          "discount_percent": null,
+          "line_total": 8.25
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion 3.jpg",
+    "engine": "claude-opus-5-5",
+    "seconds": 8,
+    "cost": 0.0405,
+    "lines": 8,
+    "sum": 323.89,
+    "totalHt": 323.89,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "SIRF - Société Industrielle Raison Frères (DS Restauration)",
+      "invoice_number": null,
+      "invoice_date": "2026-05-28",
+      "currency": "EUR",
+      "total_ht": 323.89,
+      "total_ttc": 341.7,
+      "lines": [
+        {
+          "supplier_reference": "09CS",
+          "label": "EPIN. PALET BRANCHE. EQUI 2.5K B",
+          "quantity": 35,
+          "unit": "KG",
+          "unit_price": 2,
+          "discount_percent": null,
+          "line_total": 70
+        },
+        {
+          "supplier_reference": "41CS",
+          "label": "BEIGNET CHOCO/NOISETTE 75GX48Q",
+          "quantity": 3,
+          "unit": "CT",
+          "unit_price": 20,
+          "discount_percent": null,
+          "line_total": 60
+        },
+        {
+          "supplier_reference": "20CS",
+          "label": "OIGNON CUBE 2.5 KG",
+          "quantity": 20,
+          "unit": "KG",
+          "unit_price": 1.49,
+          "discount_percent": null,
+          "line_total": 29.8
+        },
+        {
+          "supplier_reference": "38CS",
+          "label": "ECHALOTE COUPEE 1 KG",
+          "quantity": 2,
+          "unit": "KG",
+          "unit_price": 4.7,
+          "discount_percent": null,
+          "line_total": 9.4
+        },
+        {
+          "supplier_reference": "37CS",
+          "label": "AIL COUPE 1 KG IMP",
+          "quantity": 1,
+          "unit": "KG",
+          "unit_price": 5.8,
+          "discount_percent": null,
+          "line_total": 5.8
+        },
+        {
+          "supplier_reference": "51CS",
+          "label": "PERSIL COUPE 1 KG",
+          "quantity": 1,
+          "unit": "KG",
+          "unit_price": 4.14,
+          "discount_percent": null,
+          "line_total": 4.14
+        },
+        {
+          "supplier_reference": "52CS",
+          "label": "CHOU CREME PARF. VANIL 40GXe27Q",
+          "quantity": 13,
+          "unit": "CT",
+          "unit_price": 10.5,
+          "discount_percent": null,
+          "line_total": 136.5
+        },
+        {
+          "supplier_reference": "52CS",
+          "label": "BRUNOISE LEGUMES 2.5KG UE Q",
+          "quantity": 5,
+          "unit": "KG",
+          "unit_price": 1.65,
+          "discount_percent": null,
+          "line_total": 8.25
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion 4.jpg",
+    "engine": "gemini-3.1-flash-lite",
+    "seconds": 3.1,
+    "error": "{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}"
+  },
+  {
+    "file": "Facture Marion 4.jpg",
+    "engine": "claude-haiku-5-5",
+    "seconds": 12.3,
+    "cost": 0.0023,
+    "lines": 18,
+    "sum": 1462.43,
+    "totalHt": 1462.43,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "PassionFroid (groupe Pomona)",
+      "invoice_number": "7879935312",
+      "invoice_date": "2026-05-29",
+      "currency": "EUR",
+      "total_ht": 1462.43,
+      "total_ttc": 1542.86,
+      "lines": [
+        {
+          "supplier_reference": "3172",
+          "label": "Beurre doux 500Gx20 /10KG",
+          "quantity": 3,
+          "unit": "KG",
+          "unit_price": 6.062,
+          "discount_percent": null,
+          "line_total": 18.19
+        },
+        {
+          "supplier_reference": "7419",
+          "label": "Creme legere 18% UHT LFR (1Lx6) SDQ",
+          "quantity": 12,
+          "unit": "L",
+          "unit_price": 3.381,
+          "discount_percent": null,
+          "line_total": 40.57
+        },
+        {
+          "supplier_reference": "24456",
+          "label": "Beurre micro 1/2sel (10Gx100)x6 Presidt",
+          "quantity": 2,
+          "unit": "KG",
+          "unit_price": 10.321,
+          "discount_percent": null,
+          "line_total": 20.64
+        },
+        {
+          "supplier_reference": "33472",
+          "label": "Tran emmental 28% 5x15CM LFR (15Gx32)x10",
+          "quantity": 2,
+          "unit": "BQT",
+          "unit_price": 12.63,
+          "discount_percent": null,
+          "line_total": 25.26
+        },
+        {
+          "supplier_reference": "42024",
+          "label": "Yt brasse fruit mixe BIO LFR(100Gx4)x6 N",
+          "quantity": 360,
+          "unit": "POT",
+          "unit_price": 0.489,
+          "discount_percent": null,
+          "line_total": 176.04
+        },
+        {
+          "supplier_reference": "61947",
+          "label": "Tomme noire Pyrenees 28% IGP 4,5KG x2",
+          "quantity": 8.624,
+          "unit": "KG",
+          "unit_price": 16.977,
+          "discount_percent": null,
+          "line_total": 146.41
+        },
+        {
+          "supplier_reference": "147130",
+          "label": "Escal dde VF s/v (90/110Gx10)x5 /5KG",
+          "quantity": 39.122,
+          "unit": "KG",
+          "unit_price": 9.85,
+          "discount_percent": null,
+          "line_total": 385.35
+        },
+        {
+          "supplier_reference": "228972",
+          "label": "Lait 1/2 ecreme BIO LFR (1Lx8) Verneuil",
+          "quantity": 60,
+          "unit": "L",
+          "unit_price": 1.115,
+          "discount_percent": null,
+          "line_total": 66.9
+        },
+        {
+          "supplier_reference": "229826",
+          "label": "Kiri creme lait 29% LFR (18Gx80)x6/480",
+          "quantity": 160,
+          "unit": "PU",
+          "unit_price": 0.301,
+          "discount_percent": null,
+          "line_total": 48.16
+        },
+        {
+          "supplier_reference": "253219",
+          "label": "Yt sucre LFR (116Gx4)x12 Danone",
+          "quantity": 160,
+          "unit": "POT",
+          "unit_price": 0.147,
+          "discount_percent": null,
+          "line_total": 23.52
+        },
+        {
+          "supplier_reference": "292461",
+          "label": "OEuf dur ecal PPA CE2 ODF(43/63Gx10x4)",
+          "quantity": 400,
+          "unit": "PU",
+          "unit_price": 0.337,
+          "discount_percent": null,
+          "line_total": 134.8
+        },
+        {
+          "supplier_reference": "293861",
+          "label": "St Nectaire laitier 27% AOP 1,75KGx2",
+          "quantity": 6.842,
+          "unit": "KG",
+          "unit_price": 11.464,
+          "discount_percent": null,
+          "line_total": 78.44
+        },
+        {
+          "supplier_reference": "325657",
+          "label": "Yt boire fraise LFR AEF (100Gx4x6) Nova",
+          "quantity": 120,
+          "unit": "BT.",
+          "unit_price": 0.474,
+          "discount_percent": null,
+          "line_total": 56.88
+        },
+        {
+          "supplier_reference": "326501",
+          "label": "Mini Babybel rge 23% CE2 (20Gx96)x1",
+          "quantity": 96,
+          "unit": "PU",
+          "unit_price": 0.637,
+          "discount_percent": null,
+          "line_total": 61.15
+        },
+        {
+          "supplier_reference": "237459",
+          "label": "Carotte rondelle 6-7mn CE2 AEF 5KGx2 Bd",
+          "quantity": 35,
+          "unit": "KG",
+          "unit_price": 1.483,
+          "discount_percent": null,
+          "line_total": 51.91
+        },
+        {
+          "supplier_reference": "280184",
+          "label": "Feuillete pecheur (70Gx45)",
+          "quantity": 45,
+          "unit": "PU",
+          "unit_price": 0.706,
+          "discount_percent": null,
+          "line_total": 31.77
+        },
+        {
+          "supplier_reference": "304318",
+          "label": "Crepe emmental (150Gx32) MARIE",
+          "quantity": 64,
+          "unit": "PU",
+          "unit_price": 1.009,
+          "discount_percent": null,
+          "line_total": 64.58
+        },
+        {
+          "supplier_reference": "317730",
+          "label": "Panier dubarry (70Gx60)/4,2KG",
+          "quantity": 60,
+          "unit": "PU",
+          "unit_price": 0.531,
+          "discount_percent": null,
+          "line_total": 31.86
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion 4.jpg",
+    "engine": "claude-sonnet-5-5",
+    "seconds": 8.7,
+    "cost": 0.0263,
+    "lines": 18,
+    "sum": 1462.43,
+    "totalHt": 1462.43,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "PassionFroid",
+      "invoice_number": "7879935312",
+      "invoice_date": "2026-05-29",
+      "currency": "EUR",
+      "total_ht": 1462.43,
+      "total_ttc": 1542.86,
+      "lines": [
+        {
+          "supplier_reference": "3172",
+          "label": "Beurre doux 500Gx20 /10KG",
+          "quantity": 3,
+          "unit": "KG",
+          "unit_price": 6.062,
+          "discount_percent": null,
+          "line_total": 18.19
+        },
+        {
+          "supplier_reference": "7419",
+          "label": "Creme legere 18% UHT LFR (1Lx6) SDQ",
+          "quantity": 12,
+          "unit": "L",
+          "unit_price": 3.381,
+          "discount_percent": null,
+          "line_total": 40.57
+        },
+        {
+          "supplier_reference": "24456",
+          "label": "Beurre micro 1/2sel (10Gx100)x6 Presidt",
+          "quantity": 2,
+          "unit": "KG",
+          "unit_price": 10.321,
+          "discount_percent": null,
+          "line_total": 20.64
+        },
+        {
+          "supplier_reference": "33472",
+          "label": "Tran emmental 28% 5x15CM LFR (15Gx32)x10",
+          "quantity": 2,
+          "unit": "BQT",
+          "unit_price": 12.63,
+          "discount_percent": null,
+          "line_total": 25.26
+        },
+        {
+          "supplier_reference": "42024",
+          "label": "Yt brasse fruit mixe BIO LFR(100Gx4)x6 N",
+          "quantity": 360,
+          "unit": "POT",
+          "unit_price": 0.489,
+          "discount_percent": null,
+          "line_total": 176.04
+        },
+        {
+          "supplier_reference": "61947",
+          "label": "Tomme noire Pyrenees 28% IGP 4,5KG x2",
+          "quantity": 8.624,
+          "unit": "KG",
+          "unit_price": 16.977,
+          "discount_percent": null,
+          "line_total": 146.41
+        },
+        {
+          "supplier_reference": "147130",
+          "label": "Escal dde VF s/v (90/110Gx10)x5 /5KG",
+          "quantity": 39.122,
+          "unit": "KG",
+          "unit_price": 9.85,
+          "discount_percent": null,
+          "line_total": 385.35
+        },
+        {
+          "supplier_reference": "228972",
+          "label": "Lait 1/2 ecreme BIO LFR (1Lx8) Verneuil",
+          "quantity": 60,
+          "unit": "L",
+          "unit_price": 1.115,
+          "discount_percent": null,
+          "line_total": 66.9
+        },
+        {
+          "supplier_reference": "229826",
+          "label": "Kiri creme lait 29% LFR (18Gx80)x6/480",
+          "quantity": 160,
+          "unit": "PU",
+          "unit_price": 0.301,
+          "discount_percent": null,
+          "line_total": 48.16
+        },
+        {
+          "supplier_reference": "253219",
+          "label": "Yt sucre LFR (115Gx4)x12 Danone",
+          "quantity": 160,
+          "unit": "POT",
+          "unit_price": 0.147,
+          "discount_percent": null,
+          "line_total": 23.52
+        },
+        {
+          "supplier_reference": "292461",
+          "label": "OEuf dur ecal PPA CE2 ODF(43/63Gx10x4)",
+          "quantity": 400,
+          "unit": "PU",
+          "unit_price": 0.337,
+          "discount_percent": null,
+          "line_total": 134.8
+        },
+        {
+          "supplier_reference": "293861",
+          "label": "St Nectaire laitier 27% AOP 1,75KGx2",
+          "quantity": 6.842,
+          "unit": "KG",
+          "unit_price": 11.464,
+          "discount_percent": null,
+          "line_total": 78.44
+        },
+        {
+          "supplier_reference": "325657",
+          "label": "Yt boire fraise LFR AEF (100Gx4x6) Nova",
+          "quantity": 120,
+          "unit": "BT.",
+          "unit_price": 0.474,
+          "discount_percent": null,
+          "line_total": 56.88
+        },
+        {
+          "supplier_reference": "326501",
+          "label": "Mini Babybel rge 23% CE2 (20Gx96)x1",
+          "quantity": 96,
+          "unit": "PU",
+          "unit_price": 0.637,
+          "discount_percent": null,
+          "line_total": 61.15
+        },
+        {
+          "supplier_reference": "237459",
+          "label": "Carotte rondelle 6-7mn CE2 AEF 5KGx2 Bd",
+          "quantity": 35,
+          "unit": "KG",
+          "unit_price": 1.483,
+          "discount_percent": null,
+          "line_total": 51.91
+        },
+        {
+          "supplier_reference": "280184",
+          "label": "Feuillete pecheur (70Gx45)",
+          "quantity": 45,
+          "unit": "PU",
+          "unit_price": 0.706,
+          "discount_percent": null,
+          "line_total": 31.77
+        },
+        {
+          "supplier_reference": "304318",
+          "label": "Crepe emmental (150Gx32) MARIE",
+          "quantity": 64,
+          "unit": "PU",
+          "unit_price": 1.009,
+          "discount_percent": null,
+          "line_total": 64.58
+        },
+        {
+          "supplier_reference": "317730",
+          "label": "Panier dubarry (70Gx60)/4,2KG",
+          "quantity": 60,
+          "unit": "PU",
+          "unit_price": 0.531,
+          "discount_percent": null,
+          "line_total": 31.86
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion 4.jpg",
+    "engine": "claude-opus-5-5",
+    "seconds": 19.8,
+    "cost": 0.0528,
+    "lines": 18,
+    "sum": 1462.43,
+    "totalHt": 1462.43,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "PassionFroid (Groupe Pomona)",
+      "invoice_number": "7879935312",
+      "invoice_date": "2026-05-29",
+      "currency": "EUR",
+      "total_ht": 1462.43,
+      "total_ttc": 1542.86,
+      "lines": [
+        {
+          "supplier_reference": "3172",
+          "label": "Beurre doux 500Gx20 /10KG",
+          "quantity": 3,
+          "unit": "KG",
+          "unit_price": 6.062,
+          "discount_percent": null,
+          "line_total": 18.19
+        },
+        {
+          "supplier_reference": "7419",
+          "label": "Creme legere 18% UHT LFR (1Lx6) SDQ",
+          "quantity": 12,
+          "unit": "L",
+          "unit_price": 3.381,
+          "discount_percent": null,
+          "line_total": 40.57
+        },
+        {
+          "supplier_reference": "24456",
+          "label": "Beurre micro 1/2sel (10Gx100)x6 Presidt",
+          "quantity": 2,
+          "unit": "KG",
+          "unit_price": 10.321,
+          "discount_percent": null,
+          "line_total": 20.64
+        },
+        {
+          "supplier_reference": "33472",
+          "label": "Tran emmental 28% 5x15CM LFR (15Gx32)x10",
+          "quantity": 2,
+          "unit": "BQT",
+          "unit_price": 12.63,
+          "discount_percent": null,
+          "line_total": 25.26
+        },
+        {
+          "supplier_reference": "42024",
+          "label": "Yt brasse fruit mixe BIO LFR(100Gx4)x6 N",
+          "quantity": 360,
+          "unit": "POT",
+          "unit_price": 0.489,
+          "discount_percent": null,
+          "line_total": 176.04
+        },
+        {
+          "supplier_reference": "61947",
+          "label": "Tomme noire Pyrenees 28% IGP 4,5KG x2",
+          "quantity": 8.624,
+          "unit": "KG",
+          "unit_price": 16.977,
+          "discount_percent": null,
+          "line_total": 146.41
+        },
+        {
+          "supplier_reference": "147130",
+          "label": "Escal dde VF s/v (90/110Gx10)x5 /5KG",
+          "quantity": 39.122,
+          "unit": "KG",
+          "unit_price": 9.85,
+          "discount_percent": null,
+          "line_total": 385.35
+        },
+        {
+          "supplier_reference": "228972",
+          "label": "Lait 1/2 ecreme BIO LFR (1Lx6) Verneuil",
+          "quantity": 60,
+          "unit": "L",
+          "unit_price": 1.115,
+          "discount_percent": null,
+          "line_total": 66.9
+        },
+        {
+          "supplier_reference": "229826",
+          "label": "Kiri creme lait 29% LFR (18Gx80)x6/480",
+          "quantity": 160,
+          "unit": "PU",
+          "unit_price": 0.301,
+          "discount_percent": null,
+          "line_total": 48.16
+        },
+        {
+          "supplier_reference": "253219",
+          "label": "Yt sucre LFR (115Gx4)x12 Danone",
+          "quantity": 160,
+          "unit": "POT",
+          "unit_price": 0.147,
+          "discount_percent": null,
+          "line_total": 23.52
+        },
+        {
+          "supplier_reference": "292461",
+          "label": "OEuf dur ecal PPA CE2 ODF(43/63Gx10x4)",
+          "quantity": 400,
+          "unit": "PU",
+          "unit_price": 0.337,
+          "discount_percent": null,
+          "line_total": 134.8
+        },
+        {
+          "supplier_reference": "293861",
+          "label": "St Nectaire laitier 27% AOP 1,75KGx2",
+          "quantity": 6.842,
+          "unit": "KG",
+          "unit_price": 11.464,
+          "discount_percent": null,
+          "line_total": 78.44
+        },
+        {
+          "supplier_reference": "325657",
+          "label": "Yt boire fraise LFR AEF (100Gx4x6) Nova",
+          "quantity": 120,
+          "unit": "BT.",
+          "unit_price": 0.474,
+          "discount_percent": null,
+          "line_total": 56.88
+        },
+        {
+          "supplier_reference": "326501",
+          "label": "Mini Babybel rge 23% CE2 (20Gx96)x1",
+          "quantity": 96,
+          "unit": "PU",
+          "unit_price": 0.637,
+          "discount_percent": null,
+          "line_total": 61.15
+        },
+        {
+          "supplier_reference": "237459",
+          "label": "Carotte rondelle 6-7mn CE2 AEF 5KGx2 Bd",
+          "quantity": 35,
+          "unit": "KG",
+          "unit_price": 1.483,
+          "discount_percent": null,
+          "line_total": 51.91
+        },
+        {
+          "supplier_reference": "280184",
+          "label": "Feuillete pecheur (70Gx45)",
+          "quantity": 45,
+          "unit": "PU",
+          "unit_price": 0.706,
+          "discount_percent": null,
+          "line_total": 31.77
+        },
+        {
+          "supplier_reference": "304318",
+          "label": "Crepe emmental (150Gx32) MARIE",
+          "quantity": 64,
+          "unit": "PU",
+          "unit_price": 1.009,
+          "discount_percent": null,
+          "line_total": 64.58
+        },
+        {
+          "supplier_reference": "317730",
+          "label": "Panier dubarry (70Gx60)/4,2KG",
+          "quantity": 60,
+          "unit": "PU",
+          "unit_price": 0.531,
+          "discount_percent": null,
+          "line_total": 31.86
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion.jpg",
+    "engine": "gemini-3.1-flash-lite",
+    "seconds": 1.5,
+    "error": "{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}"
+  },
+  {
+    "file": "Facture Marion.jpg",
+    "engine": "claude-haiku-5-5",
+    "seconds": 7,
+    "cost": 0.0012,
+    "lines": 5,
+    "sum": 524,
+    "totalHt": 524,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "EpiSaveurs Centre",
+      "invoice_number": "7826275751",
+      "invoice_date": "2026-05-28",
+      "currency": "EUR",
+      "total_ht": 524,
+      "total_ttc": 552.82,
+      "lines": [
+        {
+          "supplier_reference": "19083",
+          "label": "Gateau fourre choc x2 (40Gx110) Prince",
+          "quantity": 2,
+          "unit": "COL",
+          "unit_price": 45,
+          "discount_percent": null,
+          "line_total": 90
+        },
+        {
+          "supplier_reference": "313238",
+          "label": "Spec pom-poire-vani ssa grde(90Gx48)PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 27,
+          "discount_percent": null,
+          "line_total": 108
+        },
+        {
+          "supplier_reference": "43755",
+          "label": "Genoise fourre frse miniroule(25Gx180)Lu",
+          "quantity": 2,
+          "unit": "COL",
+          "unit_price": 53,
+          "discount_percent": null,
+          "line_total": 106
+        },
+        {
+          "supplier_reference": "202340",
+          "label": "Spec pom s-suc aj grde (90Gx48) PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 26,
+          "discount_percent": null,
+          "line_total": 104
+        },
+        {
+          "supplier_reference": "313345",
+          "label": "Spec pom-mang-orang ssa grde(90Gx48)PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 29,
+          "discount_percent": null,
+          "line_total": 116
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion.jpg",
+    "engine": "claude-sonnet-5-5",
+    "seconds": 5.5,
+    "cost": 0.0152,
+    "lines": 5,
+    "sum": 524,
+    "totalHt": 524,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "EpiSaveurs",
+      "invoice_number": "7826275751",
+      "invoice_date": "2026-05-28",
+      "currency": "EUR",
+      "total_ht": 524,
+      "total_ttc": 552.82,
+      "lines": [
+        {
+          "supplier_reference": "19083",
+          "label": "Gateau fourre choc x2 (40Gx110) Prince",
+          "quantity": 2,
+          "unit": "COL",
+          "unit_price": 45,
+          "discount_percent": null,
+          "line_total": 90
+        },
+        {
+          "supplier_reference": "313238",
+          "label": "Spec pom-poire-vani ssa grde(90Gx48)PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 27,
+          "discount_percent": null,
+          "line_total": 108
+        },
+        {
+          "supplier_reference": "43755",
+          "label": "Genoise fourre frse miniroule(25Gx180)Lu",
+          "quantity": 2,
+          "unit": "COL",
+          "unit_price": 53,
+          "discount_percent": null,
+          "line_total": 106
+        },
+        {
+          "supplier_reference": "202340",
+          "label": "Spec pom s-suc aj grde (90Gx48) PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 26,
+          "discount_percent": null,
+          "line_total": 104
+        },
+        {
+          "supplier_reference": "313345",
+          "label": "Spec pom-mang-orang ssa grde(90Gx48)PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 29,
+          "discount_percent": null,
+          "line_total": 116
+        }
+      ]
+    }
+  },
+  {
+    "file": "Facture Marion.jpg",
+    "engine": "claude-opus-5-5",
+    "seconds": 6.2,
+    "cost": 0.0305,
+    "lines": 5,
+    "sum": 524,
+    "totalHt": 524,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "EpiSaveurs (groupe Pomona)",
+      "invoice_number": "7826275751",
+      "invoice_date": "2026-05-28",
+      "currency": "EUR",
+      "total_ht": 524,
+      "total_ttc": 552.82,
+      "lines": [
+        {
+          "supplier_reference": "19083",
+          "label": "Gateau fourre choc x2 (40Gx110) Prince",
+          "quantity": 2,
+          "unit": "COL",
+          "unit_price": 45,
+          "discount_percent": null,
+          "line_total": 90
+        },
+        {
+          "supplier_reference": "313238",
+          "label": "Spec pom-poire-vani ssa grde(90Gx48)PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 27,
+          "discount_percent": null,
+          "line_total": 108
+        },
+        {
+          "supplier_reference": "43755",
+          "label": "Genoise fourre frse miniroule(25Gx180)Lu",
+          "quantity": 2,
+          "unit": "COL",
+          "unit_price": 53,
+          "discount_percent": null,
+          "line_total": 106
+        },
+        {
+          "supplier_reference": "202340",
+          "label": "Spec pom s-suc aj grde (90Gx48) PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 26,
+          "discount_percent": null,
+          "line_total": 104
+        },
+        {
+          "supplier_reference": "313345",
+          "label": "Spec pom-mang-orang ssa grde(90Gx48)PomP",
+          "quantity": 4,
+          "unit": "COL",
+          "unit_price": 29,
+          "discount_percent": null,
+          "line_total": 116
+        }
+      ]
+    }
+  },
+  {
+    "file": "Numérisation_20251009 (6).pdf",
+    "engine": "gemini-3.1-flash-lite",
+    "seconds": 2.3,
+    "error": "{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}"
+  },
+  {
+    "file": "Numérisation_20251009 (6).pdf",
+    "engine": "claude-haiku-5-5",
+    "seconds": 8.4,
+    "cost": 0.0009,
+    "lines": 6,
+    "sum": 201.95,
+    "totalHt": 201.95,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "FRIGEGRO",
+      "invoice_number": null,
+      "invoice_date": null,
+      "currency": "EUR",
+      "total_ht": 201.95,
+      "total_ttc": null,
+      "lines": [
+        {
+          "supplier_reference": "025177",
+          "label": "DONUT",
+          "quantity": 1,
+          "unit": "CAR",
+          "unit_price": 29.75,
+          "discount_percent": 10,
+          "line_total": 26.78
+        },
+        {
+          "supplier_reference": "027317",
+          "label": "FLAN CHOCOLAT DIAM 270",
+          "quantity": 1,
+          "unit": "CAR",
+          "unit_price": 73.51,
+          "discount_percent": 10,
+          "line_total": 66.16
+        },
+        {
+          "supplier_reference": "027369",
+          "label": "MOUSSELINE TROPEZIENNE DIAM 260",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 18.73,
+          "discount_percent": 10,
+          "line_total": 33.71
+        },
+        {
+          "supplier_reference": "833578",
+          "label": "BEIGNET FRAMBOISE 75 G",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 20.3,
+          "discount_percent": 10,
+          "line_total": 36.54
+        },
+        {
+          "supplier_reference": "833582",
+          "label": "BEIGNET PARFUM CHOCOLAT NOISETTE 75 G",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 20.29,
+          "discount_percent": 10,
+          "line_total": 36.52
+        },
+        {
+          "supplier_reference": null,
+          "label": "Participation forfaitaire",
+          "quantity": 1,
+          "unit": "UNITE",
+          "unit_price": 2.24,
+          "discount_percent": null,
+          "line_total": 2.24
+        }
+      ]
+    }
+  },
+  {
+    "file": "Numérisation_20251009 (6).pdf",
+    "engine": "claude-sonnet-5-5",
+    "seconds": 6.2,
+    "cost": 0.011,
+    "lines": 6,
+    "sum": 201.95,
+    "totalHt": 201.95,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "FRIGEGRO",
+      "invoice_number": null,
+      "invoice_date": null,
+      "currency": "EUR",
+      "total_ht": 201.95,
+      "total_ttc": null,
+      "lines": [
+        {
+          "supplier_reference": "025177",
+          "label": "DONUT",
+          "quantity": 1,
+          "unit": "CAR",
+          "unit_price": 29.75,
+          "discount_percent": null,
+          "line_total": 26.78
+        },
+        {
+          "supplier_reference": "027317",
+          "label": "FLAN CHOCOLAT DIAM 270",
+          "quantity": 1,
+          "unit": "CAR",
+          "unit_price": 73.51,
+          "discount_percent": null,
+          "line_total": 66.16
+        },
+        {
+          "supplier_reference": "027369",
+          "label": "MOUSSELINE TROPEZIENNE DIAM 260",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 18.73,
+          "discount_percent": null,
+          "line_total": 33.71
+        },
+        {
+          "supplier_reference": "833578",
+          "label": "BEIGNET FRAMBOISE 75 G",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 20.3,
+          "discount_percent": null,
+          "line_total": 36.54
+        },
+        {
+          "supplier_reference": "833582",
+          "label": "BEIGNET PARFUM CHOCOLAT NOISETTE 75 G",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 20.29,
+          "discount_percent": null,
+          "line_total": 36.52
+        },
+        {
+          "supplier_reference": null,
+          "label": "Participation forfaitaire",
+          "quantity": 1,
+          "unit": "UNITE",
+          "unit_price": 2.24,
+          "discount_percent": null,
+          "line_total": 2.24
+        }
+      ]
+    }
+  },
+  {
+    "file": "Numérisation_20251009 (6).pdf",
+    "engine": "claude-opus-5-5",
+    "seconds": 7.2,
+    "cost": 0.0219,
+    "lines": 6,
+    "sum": 201.95,
+    "totalHt": 201.95,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "FRIGEGRO",
+      "invoice_number": null,
+      "invoice_date": null,
+      "currency": "EUR",
+      "total_ht": 201.95,
+      "total_ttc": null,
+      "lines": [
+        {
+          "supplier_reference": "025177",
+          "label": "DONUT",
+          "quantity": 1,
+          "unit": "CAR",
+          "unit_price": 29.75,
+          "discount_percent": null,
+          "line_total": 26.78
+        },
+        {
+          "supplier_reference": "027317",
+          "label": "FLAN CHOCOLAT DIAM 270",
+          "quantity": 1,
+          "unit": "CAR",
+          "unit_price": 73.51,
+          "discount_percent": null,
+          "line_total": 66.16
+        },
+        {
+          "supplier_reference": "027369",
+          "label": "MOUSSELINE TROPEZIENNE DIAM 260",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 18.73,
+          "discount_percent": null,
+          "line_total": 33.71
+        },
+        {
+          "supplier_reference": "833578",
+          "label": "BEIGNET FRAMBOISE 75 G",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 20.3,
+          "discount_percent": null,
+          "line_total": 36.54
+        },
+        {
+          "supplier_reference": "833582",
+          "label": "BEIGNET PARFUM CHOCOLAT NOISETTE 75 G",
+          "quantity": 2,
+          "unit": "CAR",
+          "unit_price": 20.29,
+          "discount_percent": null,
+          "line_total": 36.52
+        },
+        {
+          "supplier_reference": null,
+          "label": "Participation forfaitaire",
+          "quantity": 1,
+          "unit": "UNITE",
+          "unit_price": 2.24,
+          "discount_percent": null,
+          "line_total": 2.24
+        }
+      ]
+    }
+  },
+  {
+    "file": "Scan17-03-2026-131005.pdf",
+    "engine": "gemini-3.1-flash-lite",
+    "seconds": 3.5,
+    "error": "{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}"
+  },
+  {
+    "file": "Scan17-03-2026-131005.pdf",
+    "engine": "claude-haiku-5-5",
+    "seconds": 8.4,
+    "cost": 0.0017,
+    "lines": 10,
+    "sum": 1679.26,
+    "totalHt": 1679.26,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "PRO A PRO CHAPONNAY",
+      "invoice_number": null,
+      "invoice_date": "2026-03-16",
+      "currency": "EUR",
+      "total_ht": 1679.26,
+      "total_ttc": 1771.62,
+      "lines": [
+        {
+          "supplier_reference": "163729",
+          "label": "Pépinettes HVE 5K",
+          "quantity": 4,
+          "unit": "SAC",
+          "unit_price": 16.2,
+          "discount_percent": null,
+          "line_total": 64.8
+        },
+        {
+          "supplier_reference": "27213",
+          "label": "Tome noire envelop.30% 25gx100",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 30.1,
+          "discount_percent": null,
+          "line_total": 270.9
+        },
+        {
+          "supplier_reference": "59748",
+          "label": "Emmental bio 29% 20g x100",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 30.2,
+          "discount_percent": null,
+          "line_total": 271.8
+        },
+        {
+          "supplier_reference": "28394",
+          "label": "Crème dessert café 125g x4",
+          "quantity": 96,
+          "unit": "LOT",
+          "unit_price": 1.216,
+          "discount_percent": null,
+          "line_total": 116.74
+        },
+        {
+          "supplier_reference": "167443",
+          "label": "Plan Novly chocolat ETH 90g x4",
+          "quantity": 108,
+          "unit": "LOT",
+          "unit_price": 0.736,
+          "discount_percent": null,
+          "line_total": 79.49
+        },
+        {
+          "supplier_reference": "56704",
+          "label": "Eclair au café 45g x16",
+          "quantity": 37,
+          "unit": "PLT",
+          "unit_price": 5.344,
+          "discount_percent": null,
+          "line_total": 197.73
+        },
+        {
+          "supplier_reference": "167342",
+          "label": "Panier Dubarry 70g x60",
+          "quantity": 3,
+          "unit": "CRT",
+          "unit_price": 19.2,
+          "discount_percent": null,
+          "line_total": 57.6
+        },
+        {
+          "supplier_reference": "166273",
+          "label": "Sauté dinde CB² VF 50/80g 5k",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 40.435,
+          "discount_percent": null,
+          "line_total": 363.92
+        },
+        {
+          "supplier_reference": "164524",
+          "label": "SH bf VBP cuit 15% 100g 5,5K",
+          "quantity": 2,
+          "unit": "CRT",
+          "unit_price": 104.39,
+          "discount_percent": null,
+          "line_total": 208.78
+        },
+        {
+          "supplier_reference": "153319",
+          "label": "Oignons en dés 2,5K",
+          "quantity": 12,
+          "unit": "SCH",
+          "unit_price": 3.958,
+          "discount_percent": null,
+          "line_total": 47.5
+        }
+      ]
+    }
+  },
+  {
+    "file": "Scan17-03-2026-131005.pdf",
+    "engine": "claude-sonnet-5-5",
+    "seconds": 6,
+    "cost": 0.0197,
+    "lines": 5,
+    "sum": 803.73,
+    "totalHt": 803.73,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "PRO A PRO CHAPONNAY",
+      "invoice_number": "3465212",
+      "invoice_date": "2026-03-16",
+      "currency": "EUR",
+      "total_ht": 803.73,
+      "total_ttc": 847.93,
+      "lines": [
+        {
+          "supplier_reference": "163729",
+          "label": "Pépinettes HVE 5K",
+          "quantity": 4,
+          "unit": "SAC",
+          "unit_price": 16.2,
+          "discount_percent": null,
+          "line_total": 64.8
+        },
+        {
+          "supplier_reference": "27213",
+          "label": "Tome noire envelop.30% 25gx100",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 30.1,
+          "discount_percent": null,
+          "line_total": 270.9
+        },
+        {
+          "supplier_reference": "59748",
+          "label": "Emmental bio 29% 20g x100",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 30.2,
+          "discount_percent": null,
+          "line_total": 271.8
+        },
+        {
+          "supplier_reference": "28394",
+          "label": "Crème dessert café 125g x4",
+          "quantity": 96,
+          "unit": "LOT",
+          "unit_price": 1.216,
+          "discount_percent": null,
+          "line_total": 116.74
+        },
+        {
+          "supplier_reference": "167443",
+          "label": "Flan Novly chocolat ETH 90g x4",
+          "quantity": 108,
+          "unit": "LOT",
+          "unit_price": 0.736,
+          "discount_percent": null,
+          "line_total": 79.49
+        }
+      ]
+    }
+  },
+  {
+    "file": "Scan17-03-2026-131005.pdf",
+    "engine": "claude-opus-5-5",
+    "seconds": 9.2,
+    "cost": 0.0514,
+    "lines": 10,
+    "sum": 1679.26,
+    "totalHt": 1679.26,
+    "reconcilePct": 0,
+    "invoice": {
+      "supplier_name": "PRO A PRO CHAPONNAY",
+      "invoice_number": "3465212",
+      "invoice_date": "2026-03-16",
+      "currency": "EUR",
+      "total_ht": 1679.26,
+      "total_ttc": 1771.62,
+      "lines": [
+        {
+          "supplier_reference": "163729",
+          "label": "Pépinettes HVE 5K - Alpina Savoie",
+          "quantity": 4,
+          "unit": "SAC",
+          "unit_price": 16.2,
+          "discount_percent": null,
+          "line_total": 64.8
+        },
+        {
+          "supplier_reference": "27213",
+          "label": "Tome noire envelop.30% 25gx100 - Vie de Château",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 30.1,
+          "discount_percent": null,
+          "line_total": 270.9
+        },
+        {
+          "supplier_reference": "59748",
+          "label": "Emmental bio 29% 20g x100 - Vie de Château",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 30.2,
+          "discount_percent": null,
+          "line_total": 271.8
+        },
+        {
+          "supplier_reference": "28394",
+          "label": "Crème dessert café 125g x4 - Mamie Nova",
+          "quantity": 96,
+          "unit": "LOT",
+          "unit_price": 1.216,
+          "discount_percent": null,
+          "line_total": 116.74
+        },
+        {
+          "supplier_reference": "167443",
+          "label": "Flan Novly chocolat ETH 90g x4 - Nova",
+          "quantity": 108,
+          "unit": "LOT",
+          "unit_price": 0.736,
+          "discount_percent": null,
+          "line_total": 79.49
+        },
+        {
+          "supplier_reference": "56704",
+          "label": "Eclair au café 45g x16 - Symphonie",
+          "quantity": 37,
+          "unit": "PLT",
+          "unit_price": 5.344,
+          "discount_percent": null,
+          "line_total": 197.73
+        },
+        {
+          "supplier_reference": "167342",
+          "label": "Panier Dubarry 70g x60",
+          "quantity": 3,
+          "unit": "CRT",
+          "unit_price": 19.2,
+          "discount_percent": null,
+          "line_total": 57.6
+        },
+        {
+          "supplier_reference": "166273",
+          "label": "Sauté dinde CE² VF 50/80g 5k",
+          "quantity": 9,
+          "unit": "CRT",
+          "unit_price": 40.435,
+          "discount_percent": null,
+          "line_total": 363.92
+        },
+        {
+          "supplier_reference": "164524",
+          "label": "SH bf VBF cuit 15% 100g 5,5K - Socopa",
+          "quantity": 2,
+          "unit": "CRT",
+          "unit_price": 104.39,
+          "discount_percent": null,
+          "line_total": 208.78
+        },
+        {
+          "supplier_reference": "153319",
+          "label": "Oignons en dés 2,5K - Metro chef",
+          "quantity": 12,
+          "unit": "SCH",
+          "unit_price": 3.958,
+          "discount_percent": null,
+          "line_total": 47.5
+        }
+      ]
+    }
+  }
+]

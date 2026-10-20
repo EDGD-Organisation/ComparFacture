@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth, type AppRole } from "@/lib/auth";
 import { shortDate } from "@/lib/format";
+import { toastError } from "@/lib/toast-error";
 import { createUser, deleteUser, listUsers, setUserRole } from "@/lib/users.functions";
 
 export const Route = createFileRoute("/utilisateurs")({
@@ -59,13 +60,13 @@ function UsersPage() {
       setRole("commercial");
       void refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toastError(error),
   });
 
   const changeRole = useMutation({
     mutationFn: (input: { userId: string; role: AppRole }) => runSetRole({ data: input }),
     onSuccess: () => void refresh(),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toastError(error),
   });
 
   const remove = useMutation({
@@ -74,7 +75,7 @@ function UsersPage() {
       toast.success("Compte supprimé");
       void refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toastError(error),
   });
 
   const users = usersQuery.data ?? [];

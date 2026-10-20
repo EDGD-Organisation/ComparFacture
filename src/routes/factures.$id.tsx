@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { rematchInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
+import { toastError } from "@/lib/toast-error";
 import { comparableUnitPrice } from "@/lib/pack";
 import {
   cheapestAmong,
@@ -217,7 +218,7 @@ function InvoiceDetail() {
       toast.success("Rapprochement relancé");
       queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toastError(error),
   });
 
   async function viewInvoiceFile(path: string | null | undefined) {
@@ -227,7 +228,7 @@ function InvoiceDetail() {
     }
     const { data, error } = await supabase.storage.from("invoices").createSignedUrl(path, 60);
     if (error || !data?.signedUrl) {
-      toast.error(error?.message ?? "Impossible d'ouvrir le fichier");
+      toastError(error, "Impossible d'ouvrir le fichier");
       return;
     }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
@@ -246,7 +247,7 @@ function InvoiceDetail() {
       })
       .eq("id", line.id);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     if (product && (line.supplier_reference || line.label)) {
@@ -293,7 +294,7 @@ function InvoiceDetail() {
       .update({ excluded: true })
       .eq("id", line.id);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
@@ -319,7 +320,7 @@ function InvoiceDetail() {
       })
       .eq("id", line.id);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
@@ -332,7 +333,7 @@ function InvoiceDetail() {
       .update({ pack_factor: factor })
       .eq("id", line.id);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     const supplierName = invoiceQuery.data?.supplier_name ?? null;

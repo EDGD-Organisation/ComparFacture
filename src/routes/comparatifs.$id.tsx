@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  AlertCircle,
   ArrowLeft,
   Check,
   ChevronsUpDown,
@@ -43,6 +44,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { processInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, percent, shortDate } from "@/lib/format";
+import { friendlyError } from "@/lib/errors";
+import { toastError } from "@/lib/toast-error";
 import {
   cheapestAmong,
   fetchCheapestByOzego,
@@ -141,7 +144,7 @@ function ProspectComparison() {
   }) {
     const { error } = await supabase.from("prospects").update(patch).eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["prospect", id] });
@@ -210,7 +213,7 @@ function ProspectComparison() {
   const analyse = useMutation({
     mutationFn: (invoiceId: string) => process({ data: { invoiceId } }),
     onSuccess: () => toast.success("Facture analysée"),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toastError(error),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["invoices", id] }),
   });
 
@@ -242,7 +245,7 @@ function ProspectComparison() {
         analyse.mutate(invoice.id);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Échec du téléversement");
+      toastError(error, "Échec du téléversement");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -264,7 +267,7 @@ function ProspectComparison() {
     }
     const { data, error } = await supabase.storage.from("invoices").createSignedUrl(path, 60);
     if (error || !data?.signedUrl) {
-      toast.error(error?.message ?? "Impossible d'ouvrir le fichier");
+      toastError(error, "Impossible d'ouvrir le fichier");
       return;
     }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
@@ -1000,7 +1003,10 @@ function ProspectComparison() {
                         {isExpert ? ` · ${count} ligne${count > 1 ? "s" : ""}` : ""}
                       </p>
                       {invoice.error_message ? (
-                        <p className="mt-1 text-xs text-destructive">{invoice.error_message}</p>
+                        <p className="mt-1 flex items-start gap-1.5 text-xs text-destructive">
+                          <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                          {friendlyError(invoice.error_message)}
+                        </p>
                       ) : null}
                     </div>
                     {isExpert ? (

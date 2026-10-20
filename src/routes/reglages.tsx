@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { toastError } from "@/lib/toast-error";
+
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,7 +62,7 @@ function SettingsPage() {
       setApiKeyInput("");
       queryClient.invalidateQueries({ queryKey: ["erp-api-key-status"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toastError(error),
   });
 
   useEffect(() => {
@@ -88,7 +90,7 @@ function SettingsPage() {
     if (apiKeyInput.trim()) await saveApiKey.mutateAsync(apiKeyInput.trim());
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     toast.success("Réglages enregistrés");

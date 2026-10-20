@@ -1,4 +1,5 @@
 import { serverSupabase } from "./db.server";
+import { friendlyError } from "./errors";
 import { matchLines, type Thresholds } from "./matching.server";
 import { structureInvoiceImage } from "./structure.server";
 
@@ -115,7 +116,8 @@ export async function runInvoiceProcessing(invoiceId: string) {
 
     return { lines: extracted.lines.length };
   } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "Erreur inconnue";
+    console.error(`[invoice ${invoiceId}] traitement échoué`, caught);
+    const message = friendlyError(caught);
     await supabase
       .from("invoices")
       .update({ status: "error", error_message: message })

@@ -249,6 +249,9 @@ for invoice extraction (`structure.server.ts`) and, unlike the others, is expect
 shadcn/ui components (`src/components/ui/`, "new-york" style, see `components.json`) — add new
 ones via the shadcn CLI/aliases (`@/components`, `@/lib`, `@/hooks`) rather than hand-rolling
 primitives. All user-facing copy in this app is in French; keep new UI text consistent with that.
+Never show a raw error (`error.message`, API JSON) to users: show failures with `toastError(error)` from
+`src/lib/toast-error.ts` and render stored/unknown error text through `friendlyError` from
+`src/lib/errors.ts` (add a rule there for any new technical error worth explaining).
 
 ## Lint/format
 

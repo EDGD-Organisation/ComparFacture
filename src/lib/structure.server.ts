@@ -59,7 +59,7 @@ function apiKey(): string {
   return key;
 }
 
-const IMAGE_PROMPT = `Tu es un expert en lecture de factures fournisseurs françaises.
+export const IMAGE_PROMPT = `Tu es un expert en lecture de factures fournisseurs françaises.
 Analyse le document (image) fourni et renvoie les données structurées de la facture.
 Règles :
 - Ne renvoie que les lignes de produits/prestations facturées, pas les totaux ni les lignes parasites.
@@ -102,7 +102,7 @@ function normalizeDate(value: unknown): string | null {
   return typeof value === "string" && ISO_DATE.test(value) ? value : null;
 }
 
-function normalizeInvoice(raw: Record<string, unknown>): ExtractedInvoice {
+export function normalizeInvoice(raw: Record<string, unknown>): ExtractedInvoice {
   const rawLines = Array.isArray(raw["lines"]) ? (raw["lines"] as Record<string, unknown>[]) : [];
   return {
     supplier_name: (raw["supplier_name"] as string) ?? null,
@@ -128,6 +128,7 @@ function normalizeInvoice(raw: Record<string, unknown>): ExtractedInvoice {
 export async function structureInvoiceImage(
   base64: string,
   mimeType: string,
+  onUsage?: (usage: { inputTokens: number; outputTokens: number }) => void,
 ): Promise<ExtractedInvoice> {
   const client = new GoogleGenAI({ apiKey: apiKey() });
   const response = await client.models.generateContent({
@@ -137,6 +138,12 @@ export async function structureInvoiceImage(
       responseMimeType: "application/json",
       responseSchema: invoiceSchema,
     },
+  });
+  onUsage?.({
+    inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens:
+      (response.usageMetadata?.candidatesTokenCount ?? 0) +
+      (response.usageMetadata?.thoughtsTokenCount ?? 0),
   });
   if (!response.text) throw new Error("Réponse IA vide");
   return normalizeInvoice(JSON.parse(response.text) as Record<string, unknown>);

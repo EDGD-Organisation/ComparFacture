@@ -28,6 +28,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { shortDate } from "@/lib/format";
+import { toastError } from "@/lib/toast-error";
 import { PROSPECT_STATUSES, statusMeta, type ProspectStatus } from "@/lib/prospect-status";
 
 export const Route = createFileRoute("/")({
@@ -93,7 +94,7 @@ function ProspectsPage() {
       .single();
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     setOpen(false);
@@ -108,7 +109,7 @@ function ProspectsPage() {
   async function updateStatus(id: string, value: ProspectStatus) {
     const { error } = await supabase.from("prospects").update({ status: value }).eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["prospects"] });
@@ -117,7 +118,7 @@ function ProspectsPage() {
   async function remove(id: string) {
     const { error } = await supabase.from("prospects").delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["prospects"] });
