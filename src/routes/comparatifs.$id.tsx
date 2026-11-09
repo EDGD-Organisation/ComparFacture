@@ -3,22 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-<<<<<<< Updated upstream
-import {
-  AlertCircle,
-  ArrowLeft,
-  Check,
-  ChevronsUpDown,
-  Download,
-  FileUp,
-  Loader2,
-  RefreshCw,
-  Trash2,
-  X,
-} from "lucide-react";
-=======
-import { ArrowLeft, Download, FileUp, Loader2, RefreshCw, Trash2 } from "lucide-react";
->>>>>>> Stashed changes
+import { AlertCircle, ArrowLeft, Download, FileUp, Loader2, RefreshCw, Trash2 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { ProspectMatchingView } from "@/components/ProspectMatchingView";
@@ -40,24 +25,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { processInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, percent, shortDate } from "@/lib/format";
-<<<<<<< Updated upstream
 import { friendlyError } from "@/lib/errors";
 import { toastError } from "@/lib/toast-error";
-import {
-  cheapestAmong,
-  fetchCheapestByOzego,
-  fetchOzegoVariants,
-  ozegoGap,
-  type OzegoBest,
-  type OzegoVariant,
-} from "@/lib/ozego";
-=======
 import { normalizePackFactor } from "@/lib/pack";
 import { fetchAllRows, type RangeQuery } from "@/lib/paginate";
 import { cheapestAmong, ozegoGap } from "@/lib/ozego";
 import { useOzegoComparison } from "@/lib/use-ozego-comparison";
 import { invalidateLineCaches } from "@/lib/use-line-actions";
->>>>>>> Stashed changes
 
 export const Route = createFileRoute("/comparatifs/$id")({
   head: () => ({
@@ -203,14 +177,9 @@ function ProspectComparison() {
   const analyse = useMutation({
     mutationFn: (invoiceId: string) => process({ data: { invoiceId } }),
     onSuccess: () => toast.success("Facture analysée"),
-<<<<<<< Updated upstream
     onError: (error: Error) => toastError(error),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["invoices", id] }),
-=======
-    onError: (error: Error) => toast.error(error.message),
     onSettled: (_data, _error, invoiceId) =>
       invalidateLineCaches(queryClient, { invoiceId, prospectId: id }, { ozego: false }),
->>>>>>> Stashed changes
   });
 
   async function handleFiles(files: FileList | null) {
@@ -256,7 +225,7 @@ function ProspectComparison() {
     if (path) await supabase.storage.from("invoices").remove([path]);
     const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     invalidateLineCaches(queryClient, { invoiceId, prospectId: id }, { ozego: false });
@@ -966,34 +935,13 @@ function ProspectComparison() {
                           {isExpert ? ` · ${count} ligne${count > 1 ? "s" : ""}` : ""}
                         </p>
                         {invoice.error_message ? (
-                          <p className="mt-1 text-xs text-destructive">{invoice.error_message}</p>
+                          <p className="mt-1 flex items-start gap-1.5 text-xs text-destructive">
+                            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                            {friendlyError(invoice.error_message)}
+                          </p>
                         ) : null}
                       </div>
                       {isExpert ? (
-<<<<<<< Updated upstream
-                        <Link
-                          to="/factures/$id"
-                          params={{ id: invoice.id }}
-                          className="font-medium hover:text-primary"
-                        >
-                          {invoice.supplier_name || invoice.file_name || "Facture"}
-                        </Link>
-                      ) : (
-                        <span className="font-medium">
-                          {invoice.supplier_name || invoice.file_name || "Facture"}
-                        </span>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        {invoice.invoice_number ? `N° ${invoice.invoice_number} · ` : ""}
-                        {shortDate(invoice.invoice_date ?? invoice.created_at)}
-                        {isExpert ? ` · ${count} ligne${count > 1 ? "s" : ""}` : ""}
-                      </p>
-                      {invoice.error_message ? (
-                        <p className="mt-1 flex items-start gap-1.5 text-xs text-destructive">
-                          <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-                          {friendlyError(invoice.error_message)}
-                        </p>
-=======
                         <span className="tabular-nums font-medium">{euro(invoice.total_ht)}</span>
                       ) : null}
                       <Badge className={status.className} variant="secondary">
@@ -1027,7 +975,6 @@ function ProspectComparison() {
                             <Trash2 className="size-4 text-destructive" />
                           </Button>
                         </div>
->>>>>>> Stashed changes
                       ) : null}
                     </div>
                   );

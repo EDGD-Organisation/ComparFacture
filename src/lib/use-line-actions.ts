@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import type { PickedProduct } from "@/components/ProductPicker";
 import { supabase } from "@/integrations/supabase/client";
+import { toastError } from "@/lib/toast-error";
 
 import {
   applyMatchAction,
@@ -41,7 +42,7 @@ export function useLineActions() {
     successMessage?: string,
   ) {
     if (result.changed) invalidateLineCaches(queryClient, context, { ozego });
-    if (result.error) toast.error(result.error);
+    if (result.error) toastError(result.error);
     else if (successMessage) toast.success(successMessage);
   }
 

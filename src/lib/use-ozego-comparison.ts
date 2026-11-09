@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
+import { friendlyError } from "./errors";
+
 import {
   fetchCheapestByOzego,
   fetchOzegoVariants,
@@ -31,7 +33,8 @@ export function useOzegoComparison(ozegoIds: string[], enabled = true) {
 
   const errorMessage = (bestQuery.error ?? variantsQuery.error)?.message;
   useEffect(() => {
-    if (errorMessage) toast.error(errorMessage, { id: "ozego-comparison-error" });
+    if (errorMessage)
+      toast.error(friendlyError(errorMessage), { id: "ozego-comparison-error", duration: 6000 });
   }, [errorMessage]);
 
   return {

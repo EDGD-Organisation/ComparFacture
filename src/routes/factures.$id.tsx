@@ -26,24 +26,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { rematchInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
-<<<<<<< Updated upstream
 import { toastError } from "@/lib/toast-error";
-import { comparableUnitPrice } from "@/lib/pack";
-import {
-  cheapestAmong,
-  fetchCheapestByOzego,
-  fetchOzegoVariants,
-  ozegoGap,
-  type OzegoBest,
-  type OzegoVariant,
-} from "@/lib/ozego";
-=======
 import { isLineLocked, type Stage } from "@/lib/line-actions";
 import { comparableUnitPrice, normalizePackFactor } from "@/lib/pack";
 import { cheapestAmong, ozegoGap } from "@/lib/ozego";
 import { invalidateLineCaches, useLineActions } from "@/lib/use-line-actions";
 import { useOzegoComparison } from "@/lib/use-ozego-comparison";
->>>>>>> Stashed changes
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -218,74 +206,6 @@ function InvoiceDetail() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
-<<<<<<< Updated upstream
-  async function applyMatch(line: Line, product: PickedProduct | null, stage: Stage) {
-    const { error } = await supabase
-      .from("invoice_lines")
-      .update({
-        matched_product_id: product?.id ?? null,
-        match_status: product ? "confirmed" : "unmatched",
-        match_method: product ? "manuel" : null,
-        match_score: product ? 1 : null,
-        manual_override: true,
-        validated_stage: product ? stage : null,
-      })
-      .eq("id", line.id);
-    if (error) {
-      toastError(error);
-      return;
-    }
-    if (product && (line.supplier_reference || line.label)) {
-      const supplierName = invoiceQuery.data?.supplier_name ?? null;
-      let existing = supabase.from("product_mappings").select("id");
-      existing = supplierName
-        ? existing.ilike("supplier_name", supplierName)
-        : existing.is("supplier_name", null);
-      existing = line.supplier_reference
-        ? existing.ilike("supplier_reference", line.supplier_reference)
-        : existing.ilike("supplier_label", line.label);
-      const { data: found } = await existing.maybeSingle();
-
-      if (found) {
-        await supabase
-          .from("product_mappings")
-          .update({ product_id: product.id, pack_factor: line.pack_factor ?? 1 })
-          .eq("id", found.id);
-      } else {
-        await supabase.from("product_mappings").insert({
-          supplier_name: supplierName,
-          supplier_reference: line.supplier_reference,
-          supplier_label: line.label,
-          product_id: product.id,
-          pack_factor: line.pack_factor ?? 1,
-        });
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-    toast.success(product ? "Correspondance enregistrée" : "Correspondance retirée");
-  }
-
-  async function confirm(line: Line) {
-    await supabase
-      .from("invoice_lines")
-      .update({ match_status: "confirmed", manual_override: true, validated_stage: "fournisseur" })
-      .eq("id", line.id);
-    queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-  }
-
-  async function deleteLine(line: Line) {
-    const { error } = await supabase
-      .from("invoice_lines")
-      .update({ excluded: true })
-      .eq("id", line.id);
-    if (error) {
-      toastError(error);
-      return;
-    }
-    queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-    toast.success("Ligne supprimée");
-  }
-=======
   const lineActions = useLineActions();
   const lineContext = () => ({
     invoiceId: id,
@@ -297,7 +217,6 @@ function InvoiceDetail() {
     lineActions.applyMatch(line, lineContext(), product, stage);
   const confirm = (line: Line) => lineActions.confirm(line, lineContext());
   const deleteLine = (line: Line) => lineActions.deleteLine(line, lineContext());
->>>>>>> Stashed changes
 
   async function saveLineField(
     line: Line,
@@ -324,45 +243,8 @@ function InvoiceDetail() {
     invalidateLineCaches(queryClient, lineContext(), { ozego: false });
   }
 
-<<<<<<< Updated upstream
-  async function savePackFactor(line: Line, value: number) {
-    const factor = Number.isFinite(value) && value > 0 ? value : 1;
-    const { error } = await supabase
-      .from("invoice_lines")
-      .update({ pack_factor: factor })
-      .eq("id", line.id);
-    if (error) {
-      toastError(error);
-      return;
-    }
-    const supplierName = invoiceQuery.data?.supplier_name ?? null;
-    if (line.matched_product_id) {
-      let existing = supabase.from("product_mappings").select("id");
-      existing = supplierName
-        ? existing.ilike("supplier_name", supplierName)
-        : existing.is("supplier_name", null);
-      existing = line.supplier_reference
-        ? existing.ilike("supplier_reference", line.supplier_reference)
-        : existing.ilike("supplier_label", line.label);
-      const { data: found } = await existing.maybeSingle();
-      if (found) {
-        await supabase.from("product_mappings").update({ pack_factor: factor }).eq("id", found.id);
-      } else {
-        await supabase.from("product_mappings").insert({
-          supplier_name: supplierName,
-          supplier_reference: line.supplier_reference,
-          supplier_label: line.label,
-          product_id: line.matched_product_id,
-          pack_factor: factor,
-        });
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-  }
-=======
   const savePackFactor = (line: Line, value: number) =>
     lineActions.savePackFactor(line, lineContext(), value);
->>>>>>> Stashed changes
 
   const invoice = invoiceQuery.data;
   const lines = linesQuery.data ?? [];
