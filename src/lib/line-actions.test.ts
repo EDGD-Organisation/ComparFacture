@@ -8,12 +8,17 @@ import {
   isLineLocked,
   lineCacheKeys,
   matchUpdate,
+  restoreLineAction,
+  restoreUpdate,
   savePackFactorAction,
   shouldLearnMapping,
+  snapshotForUndo,
   STAGE_ORDER,
   stageLabel,
+  undeleteLineAction,
   type ActionLine,
   type LineContext,
+  type LineSnapshot,
 } from "./line-actions";
 
 type Call = {
@@ -370,13 +375,12 @@ describe("lineCacheKeys", () => {
     ]);
   });
 
-  test("ozego ajoute les caches de comparaison de prix", () => {
+  test("ozego ajoute le seul cache Ozego qui existe encore (les variantes)", () => {
     expect(lineCacheKeys({ invoiceId: "inv", prospectId: "pro" }, { ozego: true })).toEqual([
       ["invoice-lines", "inv"],
       ["prospect-lines", "pro"],
       ["prospect-matching-lines", "pro"],
       ["invoices", "pro"],
-      ["ozego-best"],
       ["ozego-variants"],
     ]);
   });
@@ -388,5 +392,141 @@ describe("lineCacheKeys", () => {
       ["prospect-matching-lines"],
       ["invoices"],
     ]);
+  });
+});
+
+const matchedState: LineSnapshot = {
+  matched_product_id: "prod-old",
+  match_status: "review",
+  match_method: "libellé",
+  match_score: 0.72,
+  manual_override: false,
+  validated_stage: "ozego",
+  pack_factor: 6,
+};
+
+const emptyState: LineSnapshot = {
+  matched_product_id: null,
+  match_status: "unmatched",
+  match_method: null,
+  match_score: null,
+  manual_override: false,
+  validated_stage: null,
+  pack_factor: 3,
+};
+
+describe("annulation : snapshotForUndo / restoreUpdate", () => {
+  test("snapshotForUndo ne garde que les 7 champs de rapprochement", () => {
+    const full = { ...matchedState, id: "line-1", label: "ECHALOTE", quantity: 3 };
+    expect(snapshotForUndo(full)).toEqual(matchedState);
+    expect(Object.keys(snapshotForUndo(full)).sort()).toEqual(Object.keys(matchedState).sort());
+  });
+
+  test("snapshotForUndo copie les valeurs : la ligne modifiée ensuite ne change pas le snapshot", () => {
+    const source = { ...matchedState };
+    const snapshot = snapshotForUndo(source);
+    source.matched_product_id = null;
+    source.match_status = "unmatched";
+    expect(snapshot.matched_product_id).toBe("prod-old");
+    expect(snapshot.match_status).toBe("review");
+  });
+
+  test("restoreUpdate : payload exact, un champ par colonne", () => {
+    expect(restoreUpdate(matchedState)).toEqual({
+      matched_product_id: "prod-old",
+      match_status: "review",
+      match_method: "libellé",
+      match_score: 0.72,
+      manual_override: false,
+      validated_stage: "ozego",
+      pack_factor: 6,
+    });
+  });
+
+  test("restoreUpdate : les valeurs nulles sont réécrites telles quelles, jamais omises", () => {
+    const payload = restoreUpdate(emptyState);
+    expect(payload).toEqual({
+      matched_product_id: null,
+      match_status: "unmatched",
+      match_method: null,
+      match_score: null,
+      manual_override: false,
+      validated_stage: null,
+      pack_factor: 3,
+    });
+    expect(Object.keys(payload)).toHaveLength(7);
+  });
+
+  test("restoreUpdate : un conditionnement absent ou invalide retombe sur 1 (colonne non nulle)", () => {
+    expect(restoreUpdate({ ...matchedState, pack_factor: null }).pack_factor).toBe(1);
+    expect(restoreUpdate({ ...matchedState, pack_factor: 0 }).pack_factor).toBe(1);
+  });
+
+  test("aller-retour : le retrait écrase l'état, la restauration le remet comme avant", () => {
+    const before = snapshotForUndo(matchedState);
+    const removal = matchUpdate(null, "fournisseur");
+    expect(removal.matched_product_id).toBeNull();
+    expect(removal.match_status).toBe("unmatched");
+    expect(removal.validated_stage).toBeNull();
+    expect(restoreUpdate(before)).toEqual({
+      matched_product_id: "prod-old",
+      match_status: "review",
+      match_method: "libellé",
+      match_score: 0.72,
+      manual_override: false,
+      validated_stage: "ozego",
+      pack_factor: 6,
+    });
+  });
+});
+
+describe("annulation : restoreLineAction / undeleteLineAction", () => {
+  test("restoreLineAction écrit restoreUpdate sur la bonne ligne, sans toucher à product_mappings", async () => {
+    const { client, calls } = fakeClient();
+    expect(await restoreLineAction(client, line(), matchedState)).toEqual({
+      changed: true,
+      error: null,
+    });
+    expect(calls).toEqual([
+      {
+        table: "invoice_lines",
+        op: "update",
+        payload: restoreUpdate(matchedState),
+        filters: [["eq", "id", "line-1"]],
+      },
+    ]);
+  });
+
+  test("restoreLineAction d'une ligne qui n'avait pas de produit : champs nuls réécrits", async () => {
+    const { client, calls } = fakeClient();
+    await restoreLineAction(client, line({ matched_product_id: null }), emptyState);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.payload).toEqual(restoreUpdate(emptyState));
+  });
+
+  test("restoreLineAction : l'erreur est remontée et rien n'est à rafraîchir", async () => {
+    const { client } = fakeClient({ errors: { "invoice_lines.update": "refusé" } });
+    expect(await restoreLineAction(client, line(), matchedState)).toEqual({
+      changed: false,
+      error: "refusé",
+    });
+  });
+
+  test("undeleteLineAction : excluded = false sur la ligne", async () => {
+    const { client, calls } = fakeClient();
+    expect(await undeleteLineAction(client, line())).toEqual({ changed: true, error: null });
+    expect(calls).toEqual([
+      {
+        table: "invoice_lines",
+        op: "update",
+        payload: { excluded: false },
+        filters: [["eq", "id", "line-1"]],
+      },
+    ]);
+  });
+
+  test("undeleteLineAction : erreur remontée", async () => {
+    const { client } = fakeClient({ errors: { "invoice_lines.update": "nope" } });
+    expect(await undeleteLineAction(client, line())).toEqual({ changed: false, error: "nope" });
   });
 });

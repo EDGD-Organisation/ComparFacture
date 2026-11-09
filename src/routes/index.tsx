@@ -2,9 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Loader2, Plus, Trash2, Users } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { ProspectGroupsSkeleton } from "@/components/LoadingSkeletons";
 import { SupplierMultiSelect } from "@/components/SupplierMultiSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { deleteProspectMessage } from "@/lib/delete-messages";
 import { shortDate } from "@/lib/format";
 import { toastError } from "@/lib/toast-error";
 import { PROSPECT_STATUSES, statusMeta, type ProspectStatus } from "@/lib/prospect-status";
@@ -65,6 +68,12 @@ function ProspectsPage() {
   const [deliveryDate, setDeliveryDate] = useState("");
   const [matchingSuppliers, setMatchingSuppliers] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [toDelete, setToDelete] = useState<{
+    id: string;
+    name: string;
+    invoiceCount: number;
+  } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const prospectsQuery = useQuery({
     queryKey: ["prospects"],
@@ -147,7 +156,7 @@ function ProspectsPage() {
       </div>
 
       {prospectsQuery.isLoading ? (
-        <p className="text-sm text-muted-foreground">Chargement…</p>
+        <ProspectGroupsSkeleton />
       ) : prospects.length === 0 ? (
         <Card>
           <CardContent className="px-6 py-10 text-center">
@@ -235,7 +244,15 @@ function ProspectsPage() {
                                   variant="ghost"
                                   size="icon"
                                   title="Supprimer le comparatif"
-                                  onClick={() => void remove(prospect.id)}
+                                  aria-label={`Supprimer le comparatif ${prospect.name}`}
+                                  onClick={() => {
+                                    setToDelete({
+                                      id: prospect.id,
+                                      name: prospect.name,
+                                      invoiceCount: count,
+                                    });
+                                    setDeleteOpen(true);
+                                  }}
                                 >
                                   <Trash2 className="size-4 text-destructive" />
                                 </Button>
@@ -252,6 +269,13 @@ function ProspectsPage() {
           })}
         </div>
       )}
+
+      <DeleteProspectDialog
+        open={deleteOpen}
+        target={toDelete}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={(id) => void remove(id)}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -335,5 +359,52 @@ function ProspectsPage() {
         </DialogContent>
       </Dialog>
     </AppShell>
+  );
+}
+
+function DeleteProspectDialog({
+  open,
+  target,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  target: { id: string; name: string; invoiceCount: number } | null;
+  onClose: () => void;
+  onConfirm: (id: string) => void;
+}) {
+  const linesQuery = useQuery({
+    queryKey: ["prospect-delete-line-count", target?.id],
+    enabled: open && target !== null,
+    retry: false,
+    gcTime: 0,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("invoice_lines")
+        .select("id, invoices!inner(prospect_id)", { count: "exact", head: true })
+        .eq("invoices.prospect_id", target!.id)
+        .eq("excluded", false);
+      if (error) throw new Error(error.message);
+      return count;
+    },
+  });
+  const counting = linesQuery.isFetching;
+  const lineCount = counting ? null : (linesQuery.data ?? null);
+
+  return (
+    <ConfirmDeleteDialog
+      open={open}
+      onOpenChange={(next) => !next && onClose()}
+      title={`Supprimer le comparatif « ${target?.name ?? ""} » ?`}
+      onConfirm={() => target && onConfirm(target.id)}
+    >
+      <p>{deleteProspectMessage(target?.invoiceCount ?? 0, lineCount)}</p>
+      {counting ? (
+        <p className="flex items-center gap-2 text-xs">
+          <Loader2 className="size-3 animate-spin" />
+          Comptage des lignes en cours…
+        </p>
+      ) : null}
+    </ConfirmDeleteDialog>
   );
 }

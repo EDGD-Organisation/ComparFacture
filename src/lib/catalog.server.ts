@@ -1,5 +1,6 @@
 import { serverSupabase } from "./db.server";
 import { embedTexts } from "./embeddings.server";
+import { fetchAllRows } from "./paginate";
 
 export type ImportProduct = {
   reference: string;
@@ -12,33 +13,11 @@ export type ImportProduct = {
   supplier_name?: string | null | undefined;
 };
 
-// PostgREST silently caps any unpaginated select() at its configured max rows
-// (1000 here) — with 14k+ catalog_products, a plain .select() only ever saw the
-// first 1000. That made every row past the first 1000 look "new" on a resync,
-// so inserting it collided with the real (untracked) existing row — surfaced as
-// a duplicate-key error that looked like a data problem but was this pagination
-// bug. Page through with .range() instead of trusting a single unbounded select.
-//
-// Every caller's query MUST also add a stable .order() (e.g. by "id") before
-// .range(). Without one, Postgres doesn't guarantee the same row order across
-// separate requests, so successive pages can overlap or skip rows — confirmed
-// against the real local catalog: an unordered .range() loop returned 15,030
-// rows for a 15,030-row table, but ~7,400 of them were the same rows fetched
-// twice while other real rows were skipped entirely, which then misclassified
-// genuinely-existing products as "new" and hit this exact duplicate-key error.
-async function fetchAllRows<T>(
-  query: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
-): Promise<T[]> {
-  const pageSize = 1000;
-  const all: T[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data } = await query(offset, offset + pageSize - 1);
-    if (!data || data.length === 0) break;
-    all.push(...data);
-    if (data.length < pageSize) break;
-  }
-  return all;
-}
+// PostgREST caps every response at 1000 rows: reads of catalog_products go through fetchAllRows
+// (src/lib/paginate.ts), which pages with .range() and propagates Supabase errors. Every query MUST
+// keep a stable .order() (e.g. by "id"): without one Postgres does not guarantee the same row order
+// across requests, so pages can overlap or skip rows — which misclassified genuinely-existing
+// products as "new" and hit a duplicate-key error on resync.
 
 export async function runCatalogImport(data: { products: ImportProduct[]; source: string }) {
   const supabase = serverSupabase();
@@ -73,12 +52,11 @@ export async function runCatalogImport(data: { products: ImportProduct[]; source
     }
     const rows = [...seen.values()];
 
-    const existing = await fetchAllRows((from, to) =>
+    const existing = await fetchAllRows(() =>
       supabase
         .from("catalog_products")
         .select("id, reference, label, supplier_name, ozego_id, source, is_active")
-        .order("id", { ascending: true })
-        .range(from, to),
+        .order("id", { ascending: true }),
     );
     const existingIndex = new Map<string, { id: string; label: string }>();
     for (const item of existing) {
@@ -171,15 +149,14 @@ export async function runCatalogImport(data: { products: ImportProduct[]; source
 
     // Fill in any product still missing a semantic fingerprint. Uncapped: with a
     // catalog this size, one sync run's worth of missing embeddings can exceed
-    // any fixed limit — see fetchAllRows' comment for why a plain .limit() alone
+    // any fixed limit — see fetchAllRows (src/lib/paginate.ts) for why a plain .limit() alone
     // isn't enough once the true count passes PostgREST's page size.
-    const missing = await fetchAllRows((from, to) =>
+    const missing = await fetchAllRows(() =>
       supabase
         .from("catalog_products")
         .select("id, label")
         .is("embedding", null)
-        .order("id", { ascending: true })
-        .range(from, to),
+        .order("id", { ascending: true }),
     );
     for (const item of missing) {
       if (!needsEmbedding.some((entry) => entry.id === item.id)) needsEmbedding.push(item);

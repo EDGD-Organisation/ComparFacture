@@ -166,3 +166,139 @@
     letter-spacing: -0.01em;
   }
 }
+
+/*
+ * Tableaux de données (DataTableCard) : défilement interne à la carte, en-tête figé, colonnes
+ * d'extrémité figées sur grand écran, densité et bord de statut. Ces règles sont volontairement
+ * hors de toute @layer pour l'emporter sur les utilitaires de padding et de taille des cellules.
+ */
+.data-table-scroll {
+  --hl-ring: color-mix(in oklab, var(--primary) 40%, transparent);
+  position: relative;
+  max-height: 70vh;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+}
+
+.data-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--muted);
+  box-shadow:
+    0 1px 0 var(--border),
+    0 4px 6px -4px color-mix(in oklab, var(--foreground) 20%, transparent),
+    var(--sep, 0 0 #0000);
+}
+
+.data-table-scroll tbody tr {
+  --row-bg: var(--card);
+  scroll-margin-top: 4rem;
+}
+
+.data-table-scroll tbody tr[data-out="true"] {
+  --row-bg: color-mix(in oklab, var(--destructive) 5%, var(--card));
+}
+
+.data-table-scroll tbody tr[data-highlighted="true"] {
+  --row-bg: color-mix(in oklab, var(--primary) 5%, var(--card));
+}
+
+.data-table-scroll tfoot tr {
+  --row-bg: color-mix(in oklab, var(--muted) 60%, var(--card));
+}
+
+.data-table-scroll td[data-edge] {
+  position: relative;
+}
+
+.data-table-scroll td[data-edge]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 4px;
+  background-color: var(--edge);
+}
+
+.data-table-scroll td[data-edge="confirmed"] {
+  --edge: var(--success);
+}
+
+.data-table-scroll td[data-edge="review"] {
+  --edge: var(--warning);
+}
+
+.data-table-scroll td[data-edge="unmatched"] {
+  --edge: color-mix(in oklab, var(--muted-foreground) 60%, transparent);
+}
+
+.data-table-scroll [data-sticky="select"] {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 2.75rem;
+  padding-inline: 0;
+  text-align: center;
+}
+
+/* Les cases sont `display: grid` (donc de niveau bloc) : `text-align` ne les centre pas et la
+   bande de statut de 4 px en rognait le bord gauche. On les centre par leurs marges. */
+.data-table-scroll [data-sticky="select"] > [role="checkbox"] {
+  margin-inline: auto;
+}
+
+.data-table-scroll[data-density="compact"] table {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.data-table-scroll[data-density="compact"] :is(td, th) {
+  padding-block: 0.375rem;
+}
+
+.data-table-scroll[data-density="compact"] td input {
+  height: 1.75rem;
+}
+
+.data-table-scroll[data-density="compact"] td[data-sticky="right"] button {
+  height: 1.75rem;
+  width: 1.75rem;
+}
+
+@media (min-width: 1024px) {
+  .data-table-scroll td[data-sticky],
+  .data-table-scroll th[data-sticky] {
+    position: sticky;
+    z-index: 10;
+  }
+
+  .data-table-scroll th[data-sticky] {
+    z-index: 30;
+  }
+
+  .data-table-scroll td[data-sticky] {
+    background-color: var(--row-bg, var(--card));
+    box-shadow: var(--hl, 0 0 #0000), var(--sep, 0 0 #0000);
+  }
+
+  .data-table-scroll [data-sticky="select"] {
+    left: 0;
+  }
+
+  .data-table-scroll [data-sticky="left"] {
+    left: var(--select-w, 0px);
+    --sep:
+      1px 0 0 var(--border), 8px 0 8px -8px color-mix(in oklab, var(--foreground) 25%, transparent);
+  }
+
+  .data-table-scroll [data-sticky="right"] {
+    right: 0;
+    --sep:
+      -1px 0 0 var(--border),
+      -8px 0 8px -8px color-mix(in oklab, var(--foreground) 25%, transparent);
+  }
+
+  .data-table-scroll tr[data-highlighted="true"] td[data-sticky] {
+    --hl: inset 0 2px 0 var(--hl-ring), inset 0 -2px 0 var(--hl-ring);
+  }
+}

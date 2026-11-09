@@ -1,37 +1,66 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Check,
-  Download,
-  FileText,
-  Loader2,
-  Lock,
-  Pencil,
-  RefreshCw,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Download, FileText, Loader2, RefreshCw, Search } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
-import { PackFactorInput } from "@/components/PackFactorInput";
+import { CrumbText } from "@/components/CrumbText";
+import { BulkActionBar, BulkResult, BulkToolbar } from "@/components/BulkSelection";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DataTableCard, TableMessage, TableSkeletonRows } from "@/components/DataTable";
+import { NextToReviewButton } from "@/components/NextToReviewButton";
 import { ProductPicker, type PickedProduct } from "@/components/ProductPicker";
+import {
+  FournisseurComparisonTable,
+  OzegoComparisonTable,
+  StatCard,
+} from "@/components/StageComparisonTable";
+import { SectionTabPanel, SectionTabs, type SectionTabItem } from "@/components/SectionTabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { rematchInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
 import { toastError } from "@/lib/toast-error";
-import { isLineLocked, type Stage } from "@/lib/line-actions";
+import { type Stage } from "@/lib/line-actions";
 import { comparableUnitPrice, normalizePackFactor } from "@/lib/pack";
-import { cheapestAmong, ozegoGap } from "@/lib/ozego";
+import { ozegoGap } from "@/lib/ozego";
+import { prospectQueryOptions } from "@/lib/prospect-query";
+import {
+  backToComparatifSearch,
+  parseFactureSearch,
+  patchFactureSearch,
+  validateFactureSearch,
+  type FactureSearch,
+  type Mode,
+} from "@/lib/search-params";
+import { useBulkValidation } from "@/lib/use-bulk-validation";
+import { useDebouncedText } from "@/lib/use-debounced-text";
+import {
+  bestRowFor,
+  ozegoIdsOf,
+  ozegoTableLabels,
+  preferredRowFor as preferredRowOf,
+  sumFournisseurGaps,
+  sumOzegoGaps,
+  sumPreferredGaps,
+  sumReferencePrices,
+} from "@/lib/stage-rows";
+import { invoiceModeCounts } from "@/lib/tab-counts";
 import { invalidateLineCaches, useLineActions } from "@/lib/use-line-actions";
 import { useOzegoComparison } from "@/lib/use-ozego-comparison";
+import { HIGHLIGHT_ROW_CLASS, useReviewNavigation } from "@/lib/use-review-navigation";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -57,6 +86,7 @@ export const Route = createFileRoute("/factures/$id")({
       },
     ],
   }),
+  validateSearch: validateFactureSearch,
   component: InvoiceDetail,
 });
 
@@ -91,7 +121,27 @@ type Line = {
   } | null;
 };
 
-type StatusFilter = "all" | "validated" | "unvalidated";
+type StatusFilter = FactureSearch["statut"];
+
+const MODES: Array<{ id: Mode; label: string; countTitle: (count: number) => string }> = [
+  { id: "achat", label: "Achat client", countTitle: (count) => `${count} ligne(s)` },
+  { id: "recap", label: "Récapitulatif", countTitle: (count) => `${count} ligne(s)` },
+  {
+    id: "fournisseur",
+    label: "Comparatif référence fournisseur",
+    countTitle: (count) => `${count} ligne(s) à vérifier`,
+  },
+  {
+    id: "ozego",
+    label: "Ozego · Autres fournisseurs (moins cher)",
+    countTitle: (count) => `${count} ligne(s)`,
+  },
+  {
+    id: "ozego-preferes",
+    label: "Ozego · Fournisseurs préférés",
+    countTitle: (count) => `${count} ligne(s)`,
+  },
+];
 
 function normalizeForSearch(value: string): string {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -120,11 +170,29 @@ function InvoiceDetail() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
   const [picking, setPicking] = useState<Line | null>(null);
-  const [mode, setMode] = useState<"fournisseur" | "ozego" | "recap" | "achat" | "ozego-preferes">(
-    "recap",
+  const navigate = Route.useNavigate();
+  const rawSearch = Route.useSearch();
+  const {
+    mode,
+    q: search,
+    statut: statusFilter,
+  } = useMemo(() => parseFactureSearch(rawSearch), [rawSearch]);
+  /** Onglet : entrée d'historique (replace false). Recherche et filtre : replace true. */
+  const updateSearch = useCallback(
+    (patch: Partial<FactureSearch>, replace: boolean) => {
+      void navigate({
+        search: (prev) => patchFactureSearch(prev, patch),
+        replace,
+        resetScroll: false,
+        state: true,
+      });
+    },
+    [navigate],
   );
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [searchText, onSearchText] = useDebouncedText(search, (value) =>
+    updateSearch({ q: value }, true),
+  );
+  const historyState = useLocation({ select: (location) => location.state });
   const rematch = useServerFn(rematchInvoice);
 
   const invoiceQuery = useQuery({
@@ -163,11 +231,9 @@ function InvoiceDetail() {
     },
   });
 
-  const ozegoIds = (linesQuery.data ?? [])
-    .map((line) => line.catalog_products?.ozego_id ?? null)
-    .filter((value): value is string => Boolean(value));
+  const ozegoIds = ozegoIdsOf(linesQuery.data ?? []);
 
-  const { bestByOzego, variantsByOzego } = useOzegoComparison(ozegoIds);
+  const { bestByOzego, variantsByOzego, isLoading: ozegoLoading } = useOzegoComparison(ozegoIds);
 
   const prospectId = invoiceQuery.data?.prospect_id;
   const preferredSuppliersQuery = useQuery({
@@ -182,6 +248,11 @@ function InvoiceDetail() {
       if (error) throw new Error(error.message);
       return data.preferred_suppliers ?? [];
     },
+  });
+
+  const prospectQuery = useQuery({
+    ...prospectQueryOptions(prospectId ?? ""),
+    enabled: Boolean(prospectId),
   });
 
   const relaunch = useMutation({
@@ -250,86 +321,35 @@ function InvoiceDetail() {
   const lines = linesQuery.data ?? [];
   const visibleLines = lines.filter((line) => lineMatchesFilters(line, search, statusFilter));
   const tolerance = settingsQuery.data?.tolerance_percent ?? 2;
+  const modeCounts = invoiceModeCounts(lines);
+  const modeTabs: ReadonlyArray<SectionTabItem<Mode>> = MODES.map((item) => ({
+    id: item.id,
+    label: item.label,
+    count: linesQuery.data ? modeCounts[item.id] : null,
+    countTitle: item.countTitle(modeCounts[item.id]),
+  }));
+  const { goNext, highlightedId, trackingProps } = useReviewNavigation({ lines: visibleLines });
+  const bulk = useBulkValidation<Line>({
+    stage: "fournisseur",
+    filteredLines: visibleLines,
+    pageLines: visibleLines,
+    contextFor: lineContext,
+    lineLabel: (line) => line.label,
+    // Le mode ou un filtre change : la sélection ne vaut plus pour la liste affichée.
+    resetKey: [mode, search, statusFilter].join(""),
+  });
 
-  const totals = lines.reduce(
-    (acc, line) => {
-      const gap = lineGap(
-        line.unit_price,
-        line.catalog_products?.price ?? null,
-        line.quantity,
-        line.pack_factor,
-      );
-      if (gap) {
-        acc.total += gap.totalGap;
-        if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
-      } else {
-        acc.unmatched += 1;
-      }
-      return acc;
-    },
-    { total: 0, anomalies: 0, unmatched: 0 },
-  );
+  const totals = sumFournisseurGaps(lines, tolerance);
 
-  const ozegoTotals = lines.reduce(
-    (acc, line) => {
-      const best = line.catalog_products?.ozego_id
-        ? bestByOzego.get(line.catalog_products.ozego_id)
-        : undefined;
-      const gap = ozegoGap(line, best);
-      if (gap) {
-        acc.total += gap.totalGap;
-        if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
-      } else {
-        acc.unmatched += 1;
-      }
-      return acc;
-    },
-    { total: 0, anomalies: 0, unmatched: 0 },
-  );
+  const ozegoTotals = sumOzegoGaps(lines, bestByOzego, tolerance);
 
-  const { invoicedTotal, catalogTotal, bestTotal } = lines.reduce(
-    (acc, line) => {
-      const catalogPrice = line.catalog_products?.price ?? null;
-      const sup = lineGap(line.unit_price, catalogPrice, line.quantity, line.pack_factor);
-      const k = sup?.packFactor ?? normalizePackFactor(line.pack_factor);
-      if (sup) {
-        acc.invoicedTotal += (line.unit_price ?? 0) * line.quantity;
-        acc.catalogTotal += (catalogPrice ?? 0) * line.quantity * k;
-      }
-      const ozegoId = line.catalog_products?.ozego_id ?? null;
-      const best = ozegoId ? bestByOzego.get(ozegoId) : undefined;
-      const oz = ozegoGap(line, best);
-      if (oz) {
-        acc.bestTotal += (best?.price ?? 0) * line.quantity * k;
-      }
-      return acc;
-    },
-    { invoicedTotal: 0, catalogTotal: 0, bestTotal: 0 },
-  );
+  const { invoicedTotal, catalogTotal, bestTotal } = sumReferencePrices(lines, bestByOzego);
 
   const preferredSuppliers = preferredSuppliersQuery.data ?? [];
 
-  function preferredRowFor(line: Line) {
-    const ozegoId = line.catalog_products?.ozego_id ?? null;
-    const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
-    return cheapestAmong(variants, preferredSuppliers);
-  }
+  const preferredRowFor = (line: Line) => preferredRowOf(line, variantsByOzego, preferredSuppliers);
 
-  const preferredTotals = lines.reduce(
-    (acc, line) => {
-      const row = preferredRowFor(line);
-      const gap = ozegoGap(line, row);
-      if (gap) {
-        acc.total += gap.totalGap;
-        acc.bestTotal += (row?.price ?? 0) * line.quantity * gap.packFactor;
-        if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
-      } else {
-        acc.unmatched += 1;
-      }
-      return acc;
-    },
-    { total: 0, bestTotal: 0, anomalies: 0, unmatched: 0 },
-  );
+  const preferredTotals = sumPreferredGaps(lines, variantsByOzego, preferredSuppliers, tolerance);
 
   async function exportExcel() {
     if (lines.length === 0) {
@@ -609,22 +629,47 @@ function InvoiceDetail() {
 
   return (
     <AppShell expertOnly>
-      {invoice?.prospect_id ? (
-        <Link
-          to="/comparatifs/$id"
-          params={{ id: invoice.prospect_id }}
-          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> Retour au comparatif
-        </Link>
-      ) : (
-        <Link
-          to="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> Retour aux comparatifs
-        </Link>
-      )}
+      <Breadcrumb className="mb-6">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/">Comparatifs</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          {invoiceQuery.isPending || prospectId ? (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="min-w-0">
+                {prospectId ? (
+                  <BreadcrumbLink asChild>
+                    <Link
+                      to="/comparatifs/$id"
+                      params={{ id: prospectId }}
+                      search={backToComparatifSearch(historyState)}
+                    >
+                      <CrumbText
+                        text={prospectQuery.data?.name || "Comparatif"}
+                        loading={prospectQuery.isPending}
+                      />
+                    </Link>
+                  </BreadcrumbLink>
+                ) : (
+                  <CrumbText text={null} loading />
+                )}
+              </BreadcrumbItem>
+            </>
+          ) : null}
+          <BreadcrumbSeparator />
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage>
+              <CrumbText
+                text={invoice?.supplier_name || invoice?.file_name || "Facture"}
+                loading={invoiceQuery.isPending}
+              />
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -675,618 +720,223 @@ function InvoiceDetail() {
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1">
-        <button
-          type="button"
-          onClick={() => setMode("achat")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-            mode === "achat" ? "bg-background shadow-sm" : "text-muted-foreground"
-          }`}
-        >
-          Achat client
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("recap")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-            mode === "recap" ? "bg-background shadow-sm" : "text-muted-foreground"
-          }`}
-        >
-          Récapitulatif
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("fournisseur")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-            mode === "fournisseur" ? "bg-background shadow-sm" : "text-muted-foreground"
-          }`}
-        >
-          Comparatif référence fournisseur
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("ozego")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-            mode === "ozego" ? "bg-background shadow-sm" : "text-muted-foreground"
-          }`}
-        >
-          Ozego · Autres fournisseurs (moins cher)
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("ozego-preferes")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-            mode === "ozego-preferes" ? "bg-background shadow-sm" : "text-muted-foreground"
-          }`}
-        >
-          Ozego · Fournisseurs préférés
-        </button>
-      </div>
-
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Rechercher par référence, libellé…"
-            className="pl-8"
-          />
+      <SectionTabs
+        tabs={modeTabs}
+        value={mode}
+        onValueChange={(next) => updateSearch({ mode: next }, false)}
+        label="Modes de comparaison de la facture"
+        listClassName="mb-6"
+      >
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <div className="relative w-full max-w-sm">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchText}
+              onChange={(event) => onSearchText(event.target.value)}
+              placeholder="Rechercher par référence, libellé…"
+              className="pl-8"
+            />
+          </div>
+          <NextToReviewButton onClick={goNext} />
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => updateSearch({ statut: value as StatusFilter }, true)}
+          >
+            <SelectTrigger className="w-48" aria-label="Filtrer par statut de rapprochement">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les lignes</SelectItem>
+              <SelectItem value="validated">Lignes validées</SelectItem>
+              <SelectItem value="unvalidated">Lignes non validées</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-        >
-          <SelectTrigger className="w-48" aria-label="Filtrer par statut de rapprochement">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes les lignes</SelectItem>
-            <SelectItem value="validated">Lignes validées</SelectItem>
-            <SelectItem value="unvalidated">Lignes non validées</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {mode === "recap" ? (
-        <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-4">
-            <StatCard
-              label="Écart réf. fournisseur"
-              value={euro(totals.total)}
-              tone={totals.total > 0 ? "bad" : "good"}
-            />
-            <StatCard
-              label="Écart identifiant Ozego"
-              value={euro(ozegoTotals.total)}
-              tone={ozegoTotals.total > 0 ? "bad" : "good"}
-            />
-            <StatCard
-              label="Lignes rapprochées"
-              value={`${lines.length - totals.unmatched}/${lines.length}`}
-              tone={totals.unmatched ? "warn" : "good"}
-            />
-            <StatCard
-              label="Lignes hors tolérance"
-              value={String(Math.max(totals.anomalies, ozegoTotals.anomalies))}
-              tone={totals.anomalies || ozegoTotals.anomalies ? "warn" : "good"}
-            />
-          </div>
+        <SectionTabPanel value={mode}>
+          <div {...trackingProps}>
+            {mode === "recap" ? (
+              <>
+                <div className="mb-6 grid gap-4 sm:grid-cols-4">
+                  <StatCard
+                    label="Écart réf. fournisseur"
+                    value={euro(totals.total)}
+                    tone={totals.total > 0 ? "bad" : "good"}
+                  />
+                  <StatCard
+                    label="Écart identifiant Ozego"
+                    value={euro(ozegoTotals.total)}
+                    tone={ozegoTotals.total > 0 ? "bad" : "good"}
+                  />
+                  <StatCard
+                    label="Lignes rapprochées"
+                    value={`${lines.length - totals.unmatched}/${lines.length}`}
+                    tone={totals.unmatched ? "warn" : "good"}
+                  />
+                  <StatCard
+                    label="Lignes hors tolérance"
+                    value={String(Math.max(totals.anomalies, ozegoTotals.anomalies))}
+                    tone={totals.anomalies || ozegoTotals.anomalies ? "warn" : "good"}
+                  />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg">Récapitulatif ligne par ligne</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
-                      <th className="px-4 py-3 text-right font-medium">Qté</th>
-                      <th className="px-4 py-3 text-right font-medium">PU facturé</th>
-                      <th className="px-4 py-3 text-right font-medium">PU comparable</th>
-                      <th className="px-4 py-3 font-medium">Réf. catalogue</th>
-                      <th className="px-4 py-3 text-right font-medium">PU catalogue</th>
-                      <th className="px-4 py-3 text-right font-medium">Écart fournisseur</th>
-                      <th className="px-4 py-3 font-medium">Meilleure offre Ozego</th>
-                      <th className="px-4 py-3 text-right font-medium">Meilleur PU</th>
-                      <th className="px-4 py-3 text-right font-medium">Écart Ozego</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {visibleLines.map((line) => {
-                      const catalogPrice = line.catalog_products?.price ?? null;
-                      const sup = lineGap(
-                        line.unit_price,
-                        catalogPrice,
-                        line.quantity,
-                        line.pack_factor,
-                      );
-                      const ozegoId = line.catalog_products?.ozego_id ?? null;
-                      const best = ozegoId ? bestByOzego.get(ozegoId) : undefined;
-                      const oz = ozegoGap(line, best);
-                      const out =
-                        (sup && Math.abs(sup.percentGap ?? 0) > tolerance) ||
-                        (oz && Math.abs(oz.percentGap ?? 0) > tolerance);
-                      return (
-                        <tr key={line.id} className={out ? "bg-destructive/5" : undefined}>
-                          <td className="px-4 py-3">
-                            <span className="block font-medium">{line.label}</span>
-                            <span className="block font-mono text-xs text-muted-foreground">
-                              {line.supplier_reference || "sans référence"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            {line.quantity}
-                            {line.unit ? (
-                              <span className="ml-1 text-xs text-muted-foreground">
-                                {line.unit}
-                              </span>
-                            ) : null}
-                            {normalizePackFactor(line.pack_factor) !== 1 ? (
-                              <span className="block text-xs text-muted-foreground">
-                                cond. ×{normalizePackFactor(line.pack_factor)}
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            {euro(line.unit_price)}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            {euro(comparableUnitPrice(line.unit_price, line.pack_factor))}
-                          </td>
-                          <td className="px-4 py-3">
-                            {line.catalog_products ? (
-                              <>
-                                <span className="block">{line.catalog_products.label}</span>
-                                <span className="block font-mono text-xs text-muted-foreground">
-                                  {line.catalog_products.reference}
-                                </span>
-                              </>
-                            ) : (
-                              <Badge
-                                variant="secondary"
-                                className="bg-warning/20 text-warning-foreground"
-                              >
-                                À rapprocher
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                            {euro(catalogPrice)}
-                          </td>
-                          <td
-                            className={`px-4 py-3 text-right font-medium tabular-nums ${
-                              !sup
-                                ? "text-muted-foreground"
-                                : sup.unitGap > 0
-                                  ? "text-destructive"
-                                  : sup.unitGap < 0
-                                    ? "text-success"
-                                    : ""
-                            }`}
-                          >
-                            {sup ? (
-                              <>
-                                <span className="block">{euro(sup.totalGap)}</span>
-                                <span className="block text-xs">{percent(sup.percentGap)}</span>
-                              </>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {best ? (
-                              <>
-                                <span className="block">{best.supplier_name ?? "—"}</span>
-                                <span className="block font-mono text-xs text-muted-foreground">
-                                  {best.reference} · {ozegoId}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {ozegoId ? "Aucune variante" : "Sans identifiant Ozego"}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                            {euro(best?.price ?? null)}
-                          </td>
-                          <td
-                            className={`px-4 py-3 text-right font-medium tabular-nums ${
-                              !oz
-                                ? "text-muted-foreground"
-                                : oz.unitGap > 0
-                                  ? "text-destructive"
-                                  : oz.unitGap < 0
-                                    ? "text-success"
-                                    : ""
-                            }`}
-                          >
-                            {oz ? (
-                              <>
-                                <span className="block">{euro(oz.totalGap)}</span>
-                                <span className="block text-xs">{percent(oz.percentGap)}</span>
-                              </>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
-                    <tr>
-                      <td className="px-4 py-3" colSpan={4}>
-                        Total
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                        {euro(catalogTotal)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums ${totals.total > 0 ? "text-destructive" : totals.total < 0 ? "text-success" : ""}`}
-                      >
-                        {euro(totals.total)}
-                      </td>
-                      <td className="px-4 py-3" />
-                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                        {euro(bestTotal)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums ${ozegoTotals.total > 0 ? "text-destructive" : ozegoTotals.total < 0 ? "text-success" : ""}`}
-                      >
-                        {euro(ozegoTotals.total)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-                {visibleLines.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-muted-foreground">
-                    {lines.length === 0
-                      ? "Aucune ligne extraite pour cette facture."
-                      : "Aucune ligne ne correspond aux filtres."}
-                  </p>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      ) : mode === "achat" ? (
-        <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2">
-            <StatCard label="Total facturé" value={euro(invoicedTotal)} tone="good" />
-            <StatCard label="Lignes" value={String(lines.length)} tone="good" />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg">Achat client</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
-                      <th className="px-4 py-3 text-right font-medium">Qté</th>
-                      <th className="px-4 py-3 font-medium">Unité</th>
-                      <th className="px-4 py-3 text-right font-medium">PU facturé</th>
-                      <th className="px-4 py-3 text-right font-medium">Remise %</th>
-                      <th className="px-4 py-3 text-right font-medium">Total ligne</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {visibleLines.map((line) => (
-                      <tr key={line.id}>
-                        <td className="px-4 py-3">
-                          <span className="block font-medium">{line.label}</span>
-                          <span className="block font-mono text-xs text-muted-foreground">
-                            {line.supplier_reference || "sans référence"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          {line.quantity}
-                          {normalizePackFactor(line.pack_factor) !== 1 ? (
-                            <span className="block text-xs text-muted-foreground">
-                              cond. ×{normalizePackFactor(line.pack_factor)}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3">{line.unit || "—"}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          {euro(line.unit_price)}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          {line.discount_percent ? percent(line.discount_percent) : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">
-                          {euro(line.line_total ?? (line.unit_price ?? 0) * line.quantity)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
-                    <tr>
-                      <td className="px-4 py-3" colSpan={5}>
-                        Total
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-                {visibleLines.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-muted-foreground">
-                    {lines.length === 0
-                      ? "Aucune ligne extraite pour cette facture."
-                      : "Aucune ligne ne correspond aux filtres."}
-                  </p>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      ) : mode === "ozego" ? (
-        <OzegoComparisonTable
-          lines={visibleLines}
-          allLinesCount={lines.length}
-          cardTitle="Meilleur prix par identifiant Ozego"
-          referenceColumnLabel="Référence la moins chère"
-          unmatchedLabel="Lignes sans identifiant Ozego"
-          statLabel="Écart vs meilleur prix Ozego"
-          rowFor={(line) => {
-            const ozegoId = line.catalog_products?.ozego_id ?? null;
-            return ozegoId ? bestByOzego.get(ozegoId) : undefined;
-          }}
-          totals={{ ...ozegoTotals, bestTotal }}
-          invoicedTotal={invoicedTotal}
-          tolerance={tolerance}
-          onSaveLineField={(line, patch) => void saveLineField(line, patch)}
-          onSavePackFactor={(line, value) => void savePackFactor(line, value)}
-          onPick={setPicking}
-          onUnmatch={(line) => void applyMatch(line, null, "ozego")}
-          onDelete={(line) => void deleteLine(line)}
-          stage="ozego"
-        />
-      ) : mode === "ozego-preferes" ? (
-        <OzegoComparisonTable
-          lines={visibleLines}
-          allLinesCount={lines.length}
-          cardTitle="Meilleur prix chez vos fournisseurs préférés"
-          referenceColumnLabel="Référence fournisseur préféré"
-          unmatchedLabel={
-            preferredSuppliers.length === 0
-              ? "Aucun fournisseur préféré défini"
-              : "Lignes sans offre préférée"
-          }
-          statLabel="Écart vs Ozego fournisseurs préférés"
-          rowFor={preferredRowFor}
-          totals={preferredTotals}
-          invoicedTotal={invoicedTotal}
-          tolerance={tolerance}
-          onSaveLineField={(line, patch) => void saveLineField(line, patch)}
-          onSavePackFactor={(line, value) => void savePackFactor(line, value)}
-          onPick={setPicking}
-          onUnmatch={(line) => void applyMatch(line, null, "ozego-preferes")}
-          onDelete={(line) => void deleteLine(line)}
-          stage="ozego-preferes"
-        />
-      ) : (
-        <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-3">
-            <StatCard
-              label="Écart total facturé"
-              value={euro(totals.total)}
-              tone={totals.total > 0 ? "bad" : "good"}
-            />
-            <StatCard
-              label="Lignes hors tolérance"
-              value={String(totals.anomalies)}
-              tone={totals.anomalies ? "warn" : "good"}
-            />
-            <StatCard
-              label="Lignes non rapprochées"
-              value={String(totals.unmatched)}
-              tone={totals.unmatched ? "warn" : "good"}
-            />
-          </div>
-
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-lg">Comparatif ligne par ligne</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
+                <DataTableCard
+                  title="Récapitulatif ligne par ligne"
+                  busy={linesQuery.isLoading}
+                  below={
+                    !linesQuery.isLoading && visibleLines.length === 0 ? (
+                      <TableMessage>
+                        {lines.length === 0
+                          ? "Aucune ligne extraite pour cette facture."
+                          : "Aucune ligne ne correspond aux filtres."}
+                      </TableMessage>
+                    ) : null
+                  }
+                >
                   <table className="w-full text-sm">
                     <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
                         <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
-                        <th className="px-4 py-3 font-medium">Produit catalogue</th>
-                        <th className="px-4 py-3 font-medium">
-                          Unité de négo + nom du fournisseur
-                        </th>
                         <th className="px-4 py-3 text-right font-medium">Qté</th>
                         <th className="px-4 py-3 text-right font-medium">PU facturé</th>
-                        <th className="px-4 py-3 text-right font-medium">Cond.</th>
                         <th className="px-4 py-3 text-right font-medium">PU comparable</th>
+                        <th className="px-4 py-3 font-medium">Réf. catalogue</th>
                         <th className="px-4 py-3 text-right font-medium">PU catalogue</th>
-                        <th className="px-4 py-3 text-right font-medium">Écart</th>
-                        <th className="px-4 py-3" />
+                        <th className="px-4 py-3 text-right font-medium">Écart fournisseur</th>
+                        <th className="px-4 py-3 font-medium">Meilleure offre Ozego</th>
+                        <th className="px-4 py-3 text-right font-medium">Meilleur PU</th>
+                        <th className="px-4 py-3 text-right font-medium">Écart Ozego</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
+                      {linesQuery.isLoading ? <TableSkeletonRows columns={10} /> : null}
                       {visibleLines.map((line) => {
                         const catalogPrice = line.catalog_products?.price ?? null;
-                        const gap = lineGap(
+                        const sup = lineGap(
                           line.unit_price,
                           catalogPrice,
                           line.quantity,
                           line.pack_factor,
                         );
+                        const ozegoId = line.catalog_products?.ozego_id ?? null;
+                        const best = ozegoId ? bestByOzego.get(ozegoId) : undefined;
+                        const oz = ozegoGap(line, best);
                         const out =
-                          gap?.percentGap !== null && gap && Math.abs(gap.percentGap!) > tolerance;
+                          (sup && Math.abs(sup.percentGap ?? 0) > tolerance) ||
+                          (oz && Math.abs(oz.percentGap ?? 0) > tolerance);
                         return (
-                          <tr key={line.id} className={out ? "bg-destructive/5" : undefined}>
+                          <tr
+                            key={line.id}
+                            data-line-id={line.id}
+                            className={
+                              highlightedId === line.id
+                                ? HIGHLIGHT_ROW_CLASS
+                                : out
+                                  ? "bg-destructive/5"
+                                  : undefined
+                            }
+                          >
                             <td className="px-4 py-3">
                               <span className="block font-medium">{line.label}</span>
                               <span className="block font-mono text-xs text-muted-foreground">
                                 {line.supplier_reference || "sans référence"}
                               </span>
                             </td>
+                            <td className="px-4 py-3 text-right tabular-nums">
+                              {line.quantity}
+                              {line.unit ? (
+                                <span className="ml-1 text-xs text-muted-foreground">
+                                  {line.unit}
+                                </span>
+                              ) : null}
+                              {normalizePackFactor(line.pack_factor) !== 1 ? (
+                                <span className="block text-xs text-muted-foreground">
+                                  cond. ×{normalizePackFactor(line.pack_factor)}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums">
+                              {euro(line.unit_price)}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums">
+                              {euro(comparableUnitPrice(line.unit_price, line.pack_factor))}
+                            </td>
                             <td className="px-4 py-3">
                               {line.catalog_products ? (
                                 <>
                                   <span className="block">{line.catalog_products.label}</span>
-                                  <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+                                  <span className="block font-mono text-xs text-muted-foreground">
                                     {line.catalog_products.reference}
-                                    <MatchBadge line={line} />
-                                  </span>
-                                  {line.match_method === "libellé" ? (
-                                    <span className="block text-xs text-warning-foreground">
-                                      Pas rapproché par la référence fournisseur (libellé)
-                                    </span>
-                                  ) : line.match_method === "manuel" ? (
-                                    <span className="block text-xs text-muted-foreground">
-                                      Rapprochement manuel
-                                    </span>
-                                  ) : null}
-                                </>
-                              ) : (
-                                <div className="flex flex-col items-start gap-1">
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-warning/20 text-warning-foreground"
-                                  >
-                                    À rapprocher
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {line.supplier_reference ? (
-                                      <>
-                                        Référence{" "}
-                                        <span className="font-mono">{line.supplier_reference}</span>{" "}
-                                        introuvable dans notre base
-                                      </>
-                                    ) : (
-                                      "Aucune référence fournisseur communiquée"
-                                    )}
-                                  </span>
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {line.catalog_products ? (
-                                <>
-                                  <span className="block">{line.catalog_products.unit || "—"}</span>
-                                  <span className="block text-xs text-muted-foreground">
-                                    {line.catalog_products.supplier_name ?? "—"}
                                   </span>
                                 </>
                               ) : (
-                                "—"
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-warning/20 text-warning-foreground"
+                                >
+                                  À rapprocher
+                                </Badge>
                               )}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <EditableCell
-                                  value={line.quantity}
-                                  title="Quantité facturée"
-                                  className="w-20"
-                                  onSave={(value) =>
-                                    void saveLineField(line, { quantity: Number(value) })
-                                  }
-                                />
-                                <EditableText
-                                  value={line.unit ?? ""}
-                                  title="Unité facturée (kg, carton, L…)"
-                                  className="w-16"
-                                  onSave={(value) =>
-                                    void saveLineField(line, { unit: value || null })
-                                  }
-                                />
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <EditableCell
-                                value={line.unit_price}
-                                title="Prix unitaire facturé"
-                                className="ml-auto w-24"
-                                onSave={(value) => void saveLineField(line, { unit_price: value })}
-                              />
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <PackFactorInput
-                                value={normalizePackFactor(line.pack_factor)}
-                                onSave={(value) => void savePackFactor(line, value)}
-                              />
-                            </td>
-                            <td className="px-4 py-3 text-right tabular-nums">
-                              {euro(comparableUnitPrice(line.unit_price, line.pack_factor))}
                             </td>
                             <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                               {euro(catalogPrice)}
                             </td>
                             <td
-                              className={`px-4 py-3 text-right tabular-nums font-medium ${
-                                !gap
+                              className={`px-4 py-3 text-right font-medium tabular-nums ${
+                                !sup
                                   ? "text-muted-foreground"
-                                  : gap.unitGap > 0
+                                  : sup.unitGap > 0
                                     ? "text-destructive"
-                                    : gap.unitGap < 0
+                                    : sup.unitGap < 0
                                       ? "text-success"
                                       : ""
                               }`}
                             >
-                              {gap ? (
+                              {sup ? (
                                 <>
-                                  <span className="block">{euro(gap.totalGap)}</span>
-                                  <span className="block text-xs">{percent(gap.percentGap)}</span>
+                                  <span className="block">{euro(sup.totalGap)}</span>
+                                  <span className="block text-xs">{percent(sup.percentGap)}</span>
                                 </>
                               ) : (
                                 "—"
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex justify-end gap-1">
-                                {line.catalog_products && line.match_status !== "confirmed" ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    title="Valider la correspondance"
-                                    onClick={() => void confirm(line)}
-                                  >
-                                    <Check className="size-4 text-success" />
-                                  </Button>
-                                ) : null}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Modifier la correspondance"
-                                  onClick={() => setPicking(line)}
-                                >
-                                  <Pencil className="size-4" />
-                                </Button>
-                                {line.catalog_products ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    title="Retirer la correspondance"
-                                    onClick={() => void applyMatch(line, null, "fournisseur")}
-                                  >
-                                    <X className="size-4 text-destructive" />
-                                  </Button>
-                                ) : null}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Supprimer la ligne"
-                                  onClick={() => void deleteLine(line)}
-                                >
-                                  <Trash2 className="size-4 text-destructive" />
-                                </Button>
-                              </div>
+                              {best ? (
+                                <>
+                                  <span className="block">{best.supplier_name ?? "—"}</span>
+                                  <span className="block font-mono text-xs text-muted-foreground">
+                                    {best.reference} · {ozegoId}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  {ozegoId ? "Aucune variante" : "Sans identifiant Ozego"}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                              {euro(best?.price ?? null)}
+                            </td>
+                            <td
+                              className={`px-4 py-3 text-right font-medium tabular-nums ${
+                                !oz
+                                  ? "text-muted-foreground"
+                                  : oz.unitGap > 0
+                                    ? "text-destructive"
+                                    : oz.unitGap < 0
+                                      ? "text-success"
+                                      : ""
+                              }`}
+                            >
+                              {oz ? (
+                                <>
+                                  <span className="block">{euro(oz.totalGap)}</span>
+                                  <span className="block text-xs">{percent(oz.percentGap)}</span>
+                                </>
+                              ) : (
+                                "—"
+                              )}
                             </td>
                           </tr>
                         );
@@ -1298,8 +948,6 @@ function InvoiceDetail() {
                           Total
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
-                        <td className="px-4 py-3" />
-                        <td className="px-4 py-3" />
                         <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                           {euro(catalogTotal)}
                         </td>
@@ -1309,24 +957,195 @@ function InvoiceDetail() {
                           {euro(totals.total)}
                         </td>
                         <td className="px-4 py-3" />
+                        <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                          {euro(bestTotal)}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right tabular-nums ${ozegoTotals.total > 0 ? "text-destructive" : ozegoTotals.total < 0 ? "text-success" : ""}`}
+                        >
+                          {euro(ozegoTotals.total)}
+                        </td>
                       </tr>
                     </tfoot>
                   </table>
-                  {linesQuery.isLoading ? (
-                    <p className="px-4 py-6 text-sm text-muted-foreground">Chargement…</p>
-                  ) : visibleLines.length === 0 ? (
-                    <p className="px-4 py-6 text-sm text-muted-foreground">
-                      {lines.length === 0
-                        ? "Aucune ligne extraite pour cette facture."
-                        : "Aucune ligne ne correspond aux filtres."}
-                    </p>
-                  ) : null}
+                </DataTableCard>
+              </>
+            ) : mode === "achat" ? (
+              <>
+                <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                  <StatCard label="Total facturé" value={euro(invoicedTotal)} tone="good" />
+                  <StatCard label="Lignes" value={String(lines.length)} tone="good" />
                 </div>
-              </CardContent>
-            </Card>
+
+                <DataTableCard
+                  title="Achat client"
+                  busy={linesQuery.isLoading}
+                  below={
+                    !linesQuery.isLoading && visibleLines.length === 0 ? (
+                      <TableMessage>
+                        {lines.length === 0
+                          ? "Aucune ligne extraite pour cette facture."
+                          : "Aucune ligne ne correspond aux filtres."}
+                      </TableMessage>
+                    ) : null
+                  }
+                >
+                  <table className="w-full text-sm">
+                    <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
+                        <th className="px-4 py-3 text-right font-medium">Qté</th>
+                        <th className="px-4 py-3 font-medium">Unité</th>
+                        <th className="px-4 py-3 text-right font-medium">PU facturé</th>
+                        <th className="px-4 py-3 text-right font-medium">Remise %</th>
+                        <th className="px-4 py-3 text-right font-medium">Total ligne</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {linesQuery.isLoading ? <TableSkeletonRows columns={6} /> : null}
+                      {visibleLines.map((line) => (
+                        <tr
+                          key={line.id}
+                          data-line-id={line.id}
+                          className={highlightedId === line.id ? HIGHLIGHT_ROW_CLASS : undefined}
+                        >
+                          <td className="px-4 py-3">
+                            <span className="block font-medium">{line.label}</span>
+                            <span className="block font-mono text-xs text-muted-foreground">
+                              {line.supplier_reference || "sans référence"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {line.quantity}
+                            {normalizePackFactor(line.pack_factor) !== 1 ? (
+                              <span className="block text-xs text-muted-foreground">
+                                cond. ×{normalizePackFactor(line.pack_factor)}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3">{line.unit || "—"}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {euro(line.unit_price)}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {line.discount_percent ? percent(line.discount_percent) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium tabular-nums">
+                            {euro(line.line_total ?? (line.unit_price ?? 0) * line.quantity)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
+                      <tr>
+                        <td className="px-4 py-3" colSpan={5}>
+                          Total
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </DataTableCard>
+              </>
+            ) : mode === "ozego" ? (
+              <OzegoComparisonTable
+                lines={visibleLines}
+                allLinesCount={lines.length}
+                {...ozegoTableLabels("ozego", preferredSuppliers.length)}
+                rowFor={(line) => bestRowFor(line, bestByOzego)}
+                totals={{ ...ozegoTotals, bestTotal }}
+                invoicedTotal={invoicedTotal}
+                tolerance={tolerance}
+                onSaveLineField={(line, patch) => void saveLineField(line, patch)}
+                onSavePackFactor={(line, value) => void savePackFactor(line, value)}
+                onPick={setPicking}
+                onUnmatch={(line) => void applyMatch(line, null, "ozego")}
+                onDelete={(line) => void deleteLine(line)}
+                stage="ozego"
+                isLoading={linesQuery.isLoading}
+                ozegoLoading={ozegoLoading}
+                highlightedId={highlightedId}
+              />
+            ) : mode === "ozego-preferes" ? (
+              <OzegoComparisonTable
+                lines={visibleLines}
+                allLinesCount={lines.length}
+                {...ozegoTableLabels("ozego-preferes", preferredSuppliers.length)}
+                rowFor={preferredRowFor}
+                totals={preferredTotals}
+                invoicedTotal={invoicedTotal}
+                tolerance={tolerance}
+                onSaveLineField={(line, patch) => void saveLineField(line, patch)}
+                onSavePackFactor={(line, value) => void savePackFactor(line, value)}
+                onPick={setPicking}
+                onUnmatch={(line) => void applyMatch(line, null, "ozego-preferes")}
+                onDelete={(line) => void deleteLine(line)}
+                stage="ozego-preferes"
+                isLoading={linesQuery.isLoading}
+                ozegoLoading={ozegoLoading}
+                highlightedId={highlightedId}
+              />
+            ) : (
+              <>
+                <FournisseurComparisonTable
+                  lines={visibleLines}
+                  allLinesCount={lines.length}
+                  isLoading={linesQuery.isLoading}
+                  totals={totals}
+                  invoicedTotal={invoicedTotal}
+                  catalogTotal={catalogTotal}
+                  tolerance={tolerance}
+                  onSaveLineField={(line, patch) => void saveLineField(line, patch)}
+                  onSavePackFactor={(line, value) => void savePackFactor(line, value)}
+                  onPick={setPicking}
+                  onConfirm={(line) => void confirm(line)}
+                  onUnmatch={(line) => void applyMatch(line, null, "fournisseur")}
+                  onDelete={(line) => void deleteLine(line)}
+                  highlightedId={highlightedId}
+                  selection={bulk.selection}
+                  toolbar={
+                    <BulkToolbar
+                      threshold={bulk.threshold}
+                      onThresholdChange={bulk.setThreshold}
+                      onSelectAboveScore={bulk.selectAboveScore}
+                      filteredCount={bulk.eligibleCount}
+                      selectedCount={bulk.selectedCount}
+                      onSelectAllFiltered={bulk.selectAllFiltered}
+                      disabled={bulk.progress !== null}
+                    />
+                  }
+                />
+                {bulk.report ? (
+                  <BulkResult
+                    summary={bulk.report.summary}
+                    failures={bulk.report.failures}
+                    onDismiss={bulk.dismissReport}
+                  />
+                ) : null}
+                <BulkActionBar
+                  count={bulk.selectedCount}
+                  progress={bulk.progress}
+                  onValidate={bulk.requestValidate}
+                  onClear={bulk.clear}
+                />
+              </>
+            )}
           </div>
-        </>
-      )}
+        </SectionTabPanel>
+      </SectionTabs>
+
+      <ConfirmDialog
+        open={bulk.confirmOpen}
+        onOpenChange={bulk.setConfirmOpen}
+        title={`Valider ${bulk.selectedCount} lignes ?`}
+        confirmLabel={`Valider ${bulk.selectedCount} lignes`}
+        onConfirm={bulk.confirmValidate}
+      >
+        <p>
+          Les {bulk.selectedCount} lignes sélectionnées passeront à l'état « Validé » à l'étape «
+          Référence fournisseur ». Un bouton « Annuler » restera disponible pendant 6 secondes.
+        </p>
+      </ConfirmDialog>
 
       {picking ? (
         <ProductPicker
@@ -1337,432 +1156,5 @@ function InvoiceDetail() {
         />
       ) : null}
     </AppShell>
-  );
-}
-
-function EditableCell({
-  value,
-  title,
-  className,
-  onSave,
-}: {
-  value: number | null;
-  title: string;
-  className?: string;
-  onSave: (value: number | null) => void;
-}) {
-  const [draft, setDraft] = useState(value === null ? "" : String(value));
-  useEffect(() => setDraft(value === null ? "" : String(value)), [value]);
-
-  const commit = () => {
-    const raw = draft.trim();
-    if (raw === "") {
-      if (value !== null) onSave(null);
-      return;
-    }
-    const parsed = Number(raw.replace(",", "."));
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      setDraft(value === null ? "" : String(value));
-      return;
-    }
-    if (parsed !== value) onSave(parsed);
-  };
-
-  return (
-    <Input
-      value={draft}
-      inputMode="decimal"
-      title={title}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-      className={`h-8 text-right tabular-nums ${className ?? ""}`}
-    />
-  );
-}
-
-function EditableText({
-  value,
-  title,
-  className,
-  onSave,
-}: {
-  value: string;
-  title: string;
-  className?: string;
-  onSave: (value: string) => void;
-}) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-
-  return (
-    <Input
-      value={draft}
-      title={title}
-      placeholder="unité"
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => draft.trim() !== value && onSave(draft.trim())}
-      onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-      className={`h-8 ${className ?? ""}`}
-    />
-  );
-}
-
-function MatchBadge({ line }: { line: Line }) {
-  if (line.match_status === "confirmed") {
-    return (
-      <Badge variant="secondary" className="bg-success/15 text-success">
-        Validé
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="secondary">
-      {line.match_method ?? "auto"}
-      {line.match_score !== null ? ` ${Math.round(line.match_score * 100)} %` : ""}
-    </Badge>
-  );
-}
-
-type OzegoRow = {
-  ozego_id: string;
-  label: string;
-  reference: string;
-  supplier_name: string | null;
-  unit: string | null;
-  price: number | null;
-};
-
-/**
- * Shared table for the 2 Ozego comparison views (tous fournisseurs moins cher /
- * fournisseurs préférés) — same columns and edit actions, only `rowFor`
- * (which reference price to compare against) and the surrounding labels differ.
- */
-function OzegoComparisonTable({
-  lines,
-  allLinesCount,
-  stage,
-  cardTitle,
-  referenceColumnLabel,
-  unmatchedLabel,
-  statLabel,
-  rowFor,
-  totals,
-  invoicedTotal,
-  tolerance,
-  onSaveLineField,
-  onSavePackFactor,
-  onPick,
-  onUnmatch,
-  onDelete,
-}: {
-  lines: Line[];
-  /** Unfiltered line count for this invoice, to tell "no lines at all" apart from
-   * "the search/status filter matched nothing" in the empty-state message. */
-  allLinesCount: number;
-  /** Which of the 3 pages this table is — used to lock editing for lines
-   * already validated on an earlier page, see `isLineLocked`. */
-  stage: Stage;
-  cardTitle: string;
-  referenceColumnLabel: string;
-  unmatchedLabel: string;
-  statLabel: string;
-  rowFor: (line: Line) => OzegoRow | undefined;
-  totals: { total: number; bestTotal: number; anomalies: number; unmatched: number };
-  invoicedTotal: number;
-  tolerance: number;
-  onSaveLineField: (
-    line: Line,
-    patch: Partial<Pick<Line, "quantity" | "unit" | "unit_price">>,
-  ) => void;
-  onSavePackFactor: (line: Line, value: number) => void;
-  onPick: (line: Line) => void;
-  onUnmatch: (line: Line) => void;
-  onDelete: (line: Line) => void;
-}) {
-  return (
-    <>
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label={statLabel}
-          value={euro(totals.total)}
-          tone={totals.total > 0 ? "bad" : "good"}
-        />
-        <StatCard
-          label="Lignes hors tolérance"
-          value={String(totals.anomalies)}
-          tone={totals.anomalies ? "warn" : "good"}
-        />
-        <StatCard
-          label={unmatchedLabel}
-          value={String(totals.unmatched)}
-          tone={totals.unmatched ? "warn" : "good"}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-display text-lg">{cardTitle}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
-                  <th className="px-4 py-3 font-medium">Identifiant Ozego</th>
-                  <th className="px-4 py-3 font-medium">{referenceColumnLabel}</th>
-                  <th className="px-4 py-3 font-medium">Unité de négo + nom du fournisseur</th>
-                  <th className="px-4 py-3 text-right font-medium">Qté</th>
-                  <th className="px-4 py-3 text-right font-medium">PU facturé</th>
-                  <th className="px-4 py-3 text-right font-medium">Cond.</th>
-                  <th className="px-4 py-3 text-right font-medium">PU comparable</th>
-                  <th className="px-4 py-3 text-right font-medium">PU référence</th>
-                  <th className="px-4 py-3 text-right font-medium">Écart</th>
-                  <th className="px-4 py-3 text-right font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {lines.map((line) => {
-                  const ozegoId = line.catalog_products?.ozego_id ?? null;
-                  const row = rowFor(line);
-                  const gap = ozegoGap(line, row);
-                  const out = gap && Math.abs(gap.percentGap ?? 0) > tolerance;
-                  const locked = isLineLocked(line, stage);
-                  return (
-                    <tr key={line.id} className={out ? "bg-destructive/5" : undefined}>
-                      <td className="px-4 py-3">
-                        <span className="block font-medium">{line.label}</span>
-                        <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-                          {line.supplier_reference || "sans référence"}
-                          {line.catalog_products ? <MatchBadge line={line} /> : null}
-                          {locked ? (
-                            <span title="Verrouillée — déjà validée à une étape précédente">
-                              <Lock className="size-3.5 text-muted-foreground" />
-                            </span>
-                          ) : null}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {ozegoId ? (
-                          <span className="block font-mono text-xs">{ozegoId}</span>
-                        ) : (
-                          <Badge
-                            variant="secondary"
-                            className="bg-warning/20 text-warning-foreground"
-                          >
-                            Sans identifiant
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {row ? (
-                          <>
-                            <span className="block">{row.label}</span>
-                            <span className="block font-mono text-xs text-muted-foreground">
-                              {row.reference}
-                            </span>
-                            <span
-                              className="block font-mono text-xs text-muted-foreground"
-                              title="Identifiant Ozego complet de l'offre"
-                            >
-                              {row.ozego_id}
-                            </span>
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {row ? (
-                          <>
-                            <span className="block">{row.unit || "—"}</span>
-                            <span className="block text-xs text-muted-foreground">
-                              {row.supplier_name ?? "—"}
-                            </span>
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {locked ? (
-                          <span className="tabular-nums">
-                            {line.quantity}
-                            {line.unit ? (
-                              <span className="ml-1 text-xs text-muted-foreground">
-                                {line.unit}
-                              </span>
-                            ) : null}
-                          </span>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1">
-                            <EditableCell
-                              value={line.quantity}
-                              title="Quantité facturée"
-                              className="w-20"
-                              onSave={(value) => onSaveLineField(line, { quantity: Number(value) })}
-                            />
-                            <EditableText
-                              value={line.unit ?? ""}
-                              title="Unité facturée (kg, carton, L…)"
-                              className="w-16"
-                              onSave={(value) => onSaveLineField(line, { unit: value || null })}
-                            />
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {locked ? (
-                          <span className="tabular-nums">{euro(line.unit_price)}</span>
-                        ) : (
-                          <EditableCell
-                            value={line.unit_price}
-                            title="Prix unitaire facturé"
-                            className="ml-auto w-24"
-                            onSave={(value) => onSaveLineField(line, { unit_price: value })}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {locked ? (
-                          <span className="tabular-nums">
-                            ×{normalizePackFactor(line.pack_factor)}
-                          </span>
-                        ) : (
-                          <PackFactorInput
-                            value={normalizePackFactor(line.pack_factor)}
-                            onSave={(value) => onSavePackFactor(line, value)}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {euro(comparableUnitPrice(line.unit_price, line.pack_factor))}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                        {euro(row?.price ?? null)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right font-medium tabular-nums ${
-                          !gap
-                            ? "text-muted-foreground"
-                            : gap.unitGap > 0
-                              ? "text-destructive"
-                              : gap.unitGap < 0
-                                ? "text-success"
-                                : ""
-                        }`}
-                      >
-                        {gap ? (
-                          <>
-                            <span className="block">{euro(gap.totalGap)}</span>
-                            <span className="block text-xs">{percent(gap.percentGap)}</span>
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={locked}
-                            title={
-                              locked
-                                ? "Verrouillée — déjà validée à une étape précédente"
-                                : "Modifier la correspondance"
-                            }
-                            onClick={() => onPick(line)}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          {line.catalog_products ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled={locked}
-                              title={
-                                locked
-                                  ? "Verrouillée — déjà validée à une étape précédente"
-                                  : "Retirer la correspondance"
-                              }
-                              onClick={() => onUnmatch(line)}
-                            >
-                              <X className="size-4 text-destructive" />
-                            </Button>
-                          ) : null}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Supprimer la ligne"
-                            onClick={() => onDelete(line)}
-                          >
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
-                <tr>
-                  <td className="px-4 py-3" colSpan={5}>
-                    Total
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
-                  <td className="px-4 py-3" />
-                  <td className="px-4 py-3" />
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                    {euro(totals.bestTotal)}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right tabular-nums ${totals.total > 0 ? "text-destructive" : totals.total < 0 ? "text-success" : ""}`}
-                  >
-                    {euro(totals.total)}
-                  </td>
-                  <td className="px-4 py-3" />
-                </tr>
-              </tfoot>
-            </table>
-            {lines.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground">
-                {allLinesCount === 0
-                  ? "Aucune ligne extraite pour cette facture."
-                  : "Aucune ligne ne correspond aux filtres."}
-              </p>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "good" | "warn" | "bad";
-}) {
-  const toneClass =
-    tone === "bad"
-      ? "text-destructive"
-      : tone === "warn"
-        ? "text-warning-foreground"
-        : "text-success";
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className={`mt-1 font-display text-2xl font-semibold tabular-nums ${toneClass}`}>
-          {value}
-        </p>
-      </CardContent>
-    </Card>
   );
 }

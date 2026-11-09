@@ -4,10 +4,10 @@ import {
   buildExportRows,
   countByStatus,
   DEFAULT_FILTERS,
-  fetchAllRows,
   filterLines,
   filtersActive,
   invoiceOptions,
+  matchMethodNote,
   paginate,
   rematchSequentially,
   rowStatus,
@@ -293,75 +293,6 @@ describe("paginate", () => {
   });
 });
 
-describe("fetchAllRows", () => {
-  function fakeTable(total: number, serverMaxRows = 1000) {
-    const calls: Array<[number, number]> = [];
-    const build = () => ({
-      range(from: number, to: number) {
-        calls.push([from, to]);
-        const end = Math.min(to, from + serverMaxRows - 1, total - 1);
-        const data =
-          from > end ? [] : Array.from({ length: end - from + 1 }, (_, i) => ({ id: from + i }));
-        return Promise.resolve({ data, error: null });
-      },
-    });
-    return { build, calls };
-  }
-
-  for (const [total, expectedCalls] of [
-    [0, 1],
-    [7, 2],
-    [999, 2],
-    [1000, 2],
-    [2500, 4],
-  ] as const) {
-    test(`${total} ligne(s) : toutes récupérées, ${expectedCalls} requête(s)`, async () => {
-      const { build, calls } = fakeTable(total);
-      const rows = await fetchAllRows(build);
-      expect(rows).toHaveLength(total);
-      expect(rows.map((r) => r.id)).toEqual(Array.from({ length: total }, (_, i) => i));
-      expect(calls).toHaveLength(expectedCalls);
-    });
-  }
-
-  test("demande des tranches contiguës de 1000", async () => {
-    const { build, calls } = fakeTable(2500);
-    await fetchAllRows(build);
-    expect(calls).toEqual([
-      [0, 999],
-      [1000, 1999],
-      [2000, 2999],
-      [2500, 3499],
-    ]);
-  });
-
-  test("un plafond serveur inférieur à la taille de page ne tronque pas le résultat", async () => {
-    const { build } = fakeTable(1200, 500);
-    expect(await fetchAllRows(build)).toHaveLength(1200);
-  });
-
-  test("une erreur Supabase est propagée, jamais avalée", async () => {
-    let page = 0;
-    const build = () => ({
-      range: () => {
-        page += 1;
-        return Promise.resolve(
-          page === 1
-            ? { data: [{ id: 1 }], error: null }
-            : { data: null, error: { message: "permission denied for table invoice_lines" } },
-        );
-      },
-    });
-    let message = "";
-    try {
-      await fetchAllRows(build, 1);
-    } catch (error) {
-      message = (error as Error).message;
-    }
-    expect(message).toBe("permission denied for table invoice_lines");
-  });
-});
-
 describe("buildExportRows", () => {
   test("colonnes en français, Désignation fournisseur et pas Libellé facture", () => {
     const [row] = buildExportRows([
@@ -476,5 +407,25 @@ describe("rematchSequentially", () => {
   test("aucune facture", async () => {
     const summary = await rematchSequentially([], async () => ({ updated: 1 }));
     expect(summary).toEqual({ total: 0, succeeded: 0, updatedLines: 0, failed: [] });
+  });
+});
+
+describe("matchMethodNote", () => {
+  test("rapprochement par libellé : mention courte, phrase complète en détail", () => {
+    const note = matchMethodNote("libellé");
+    expect(note?.text).toBe("Rapproché par libellé");
+    expect(note?.detail).toBe("Pas rapproché par la référence fournisseur (libellé)");
+    expect(note?.tone).toBe("warning");
+    expect(note!.text.length < note!.detail.length).toBe(true);
+  });
+
+  test("rapprochement manuel : mention neutre", () => {
+    expect(matchMethodNote("manuel")?.tone).toBe("muted");
+  });
+
+  test("référence exacte, EAN, mapping appris ou inconnu : aucune mention", () => {
+    for (const method of ["reference", "ean", "mapping", null]) {
+      expect(matchMethodNote(method)).toBeNull();
+    }
   });
 });

@@ -84,6 +84,7 @@ function CatalogPage() {
       );
       queryClient.invalidateQueries({ queryKey: ["catalog"] });
       queryClient.invalidateQueries({ queryKey: ["catalog-count"] });
+      queryClient.invalidateQueries({ queryKey: ["ozego-variants"] });
     },
     onError: (error: Error) => toastError(error),
   });

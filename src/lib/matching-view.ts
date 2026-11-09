@@ -50,6 +50,27 @@ export type MatchingLine = {
 
 export type RowStatus = "confirmed" | "review" | "unmatched";
 
+/**
+ * Mention sous le produit catalogue d'un rapprochement par libellé ou manuel : `text` court, affiché
+ * sur une ligne ; `detail` complet, en info-bulle et pour les lecteurs d'écran. `null` : rien à dire
+ * (référence exacte, EAN, mapping appris...).
+ */
+export function matchMethodNote(
+  method: string | null,
+): { text: string; detail: string; tone: "warning" | "muted" } | null {
+  if (method === "libellé") {
+    return {
+      text: "Rapproché par libellé",
+      detail: "Pas rapproché par la référence fournisseur (libellé)",
+      tone: "warning",
+    };
+  }
+  if (method === "manuel") {
+    return { text: "Rapprochement manuel", detail: "Rapprochement manuel", tone: "muted" };
+  }
+  return null;
+}
+
 export const STATUS_LABEL: Record<RowStatus, string> = {
   confirmed: "Confirmé",
   review: "À vérifier",
@@ -58,7 +79,7 @@ export const STATUS_LABEL: Record<RowStatus, string> = {
 
 export const ROW_STATUSES: RowStatus[] = ["confirmed", "review", "unmatched"];
 
-export function rowStatus(line: MatchingLine): RowStatus {
+export function rowStatus(line: { catalog_products: unknown; match_status: string }): RowStatus {
   if (!line.catalog_products) return "unmatched";
   return line.match_status === "confirmed" ? "confirmed" : "review";
 }

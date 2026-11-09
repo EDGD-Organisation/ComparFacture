@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Trash2, UserPlus } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { ListRowsSkeleton } from "@/components/LoadingSkeletons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth, type AppRole } from "@/lib/auth";
 import { shortDate } from "@/lib/format";
+import { checkNewUser, missingHelp, visibleError } from "@/lib/new-user-form";
 import { toastError } from "@/lib/toast-error";
 import { createUser, deleteUser, listUsers, setUserRole } from "@/lib/users.functions";
 
@@ -42,6 +44,11 @@ function UsersPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<AppRole>("commercial");
+  const [touched, setTouched] = useState({ email: false, password: false });
+  const check = checkNewUser({ email, password });
+  const help = missingHelp(check);
+  const emailError = visibleError(check.emailError, touched.email);
+  const passwordError = visibleError(check.passwordError, touched.password);
 
   const usersQuery = useQuery({
     queryKey: ["users"],
@@ -58,6 +65,7 @@ function UsersPage() {
       setEmail("");
       setPassword("");
       setRole("commercial");
+      setTouched({ email: false, password: false });
       void refresh();
     },
     onError: (error: Error) => toastError(error),
@@ -94,15 +102,23 @@ function UsersPage() {
         <CardHeader>
           <CardTitle className="font-display text-lg">Créer un compte</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
           <div className="grid gap-2">
             <Label htmlFor="new-user-email">Email</Label>
             <Input
               id="new-user-email"
               type="email"
               value={email}
+              aria-invalid={emailError ? true : undefined}
+              aria-describedby={emailError ? "new-user-email-error" : undefined}
               onChange={(event) => setEmail(event.target.value)}
+              onBlur={() => setTouched((previous) => ({ ...previous, email: true }))}
             />
+            {emailError ? (
+              <p id="new-user-email-error" className="text-xs text-destructive">
+                {emailError}
+              </p>
+            ) : null}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="new-user-password">Mot de passe (8 caractères min.)</Label>
@@ -111,8 +127,16 @@ function UsersPage() {
               type="password"
               autoComplete="new-password"
               value={password}
+              aria-invalid={passwordError ? true : undefined}
+              aria-describedby={passwordError ? "new-user-password-error" : undefined}
               onChange={(event) => setPassword(event.target.value)}
+              onBlur={() => setTouched((previous) => ({ ...previous, password: true }))}
             />
+            {passwordError ? (
+              <p id="new-user-password-error" className="text-xs text-destructive">
+                {passwordError}
+              </p>
+            ) : null}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="new-user-role">Rôle</Label>
@@ -126,13 +150,26 @@ function UsersPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button
-            disabled={create.isPending || !email.trim() || password.length < 8}
-            onClick={() => create.mutate()}
+          <div className="grid gap-2">
+            <span aria-hidden="true" className="invisible text-sm leading-none max-lg:hidden">
+              &nbsp;
+            </span>
+            <Button
+              disabled={create.isPending || !check.valid}
+              aria-describedby={help ? "new-user-help" : undefined}
+              onClick={() => create.mutate()}
+            >
+              <UserPlus className="size-4" />
+              Créer le compte
+            </Button>
+          </div>
+          <p
+            id="new-user-help"
+            aria-live="polite"
+            className="text-sm text-muted-foreground empty:hidden sm:col-span-2 lg:col-span-4"
           >
-            <UserPlus className="size-4" />
-            Créer le compte
-          </Button>
+            {help}
+          </p>
         </CardContent>
       </Card>
 
@@ -144,7 +181,7 @@ function UsersPage() {
         </CardHeader>
         <CardContent className="p-0">
           {usersQuery.isLoading ? (
-            <p className="px-6 pb-6 text-sm text-muted-foreground">Chargement…</p>
+            <ListRowsSkeleton rows={3} />
           ) : (
             <div className="divide-y divide-border">
               {users.map((user) => {

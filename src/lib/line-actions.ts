@@ -53,7 +53,7 @@ export const PROSPECT_MATCHING_LINES_KEY = "prospect-matching-lines";
 /**
  * Préfixes React Query à rafraîchir après une écriture sur les lignes d'une facture : la facture
  * elle-même, le comparatif du prospect, la vue « Tous les rapprochements » et la liste des
- * factures. `ozego` ajoute les caches de comparaison de prix par groupe Ozego.
+ * factures. `ozego` ajoute le cache des variantes Ozego (dont la meilleure offre est dérivée).
  */
 export function lineCacheKeys(
   context: Pick<LineContext, "invoiceId" | "prospectId">,
@@ -65,7 +65,7 @@ export function lineCacheKeys(
     ["prospect-lines", ...prospect],
     [PROSPECT_MATCHING_LINES_KEY, ...prospect],
     ["invoices", ...prospect],
-    ...(ozego ? [["ozego-best"], ["ozego-variants"]] : []),
+    ...(ozego ? [["ozego-variants"]] : []),
   ];
 }
 
@@ -175,6 +175,66 @@ export async function confirmLineAction(client: Client, line: ActionLine): Promi
 
 export async function deleteLineAction(client: Client, line: ActionLine): Promise<ActionResult> {
   const { error } = await client.from("invoice_lines").update({ excluded: true }).eq("id", line.id);
+  return { changed: !error, error: error?.message ?? null };
+}
+
+/** État d'une ligne avant une écriture de rapprochement, de quoi la remettre comme elle était. */
+export type LineSnapshot = {
+  matched_product_id: string | null;
+  match_status: string;
+  match_method: string | null;
+  match_score: number | null;
+  manual_override: boolean;
+  validated_stage: string | null;
+  pack_factor: number | null;
+};
+
+export function snapshotForUndo(line: LineSnapshot): LineSnapshot {
+  return {
+    matched_product_id: line.matched_product_id,
+    match_status: line.match_status,
+    match_method: line.match_method,
+    match_score: line.match_score,
+    manual_override: line.manual_override,
+    validated_stage: line.validated_stage,
+    pack_factor: line.pack_factor,
+  };
+}
+
+export function restoreUpdate(snapshot: LineSnapshot) {
+  return {
+    matched_product_id: snapshot.matched_product_id,
+    match_status: snapshot.match_status,
+    match_method: snapshot.match_method,
+    match_score: snapshot.match_score,
+    manual_override: snapshot.manual_override,
+    validated_stage: snapshot.validated_stage,
+    pack_factor: normalizePackFactor(snapshot.pack_factor),
+  };
+}
+
+/** Annule un retrait de rapprochement : réécrit l'état pris avant l'écriture (apprentissage intact). */
+export async function restoreLineAction(
+  client: Client,
+  line: Pick<ActionLine, "id">,
+  snapshot: LineSnapshot,
+): Promise<ActionResult> {
+  const { error } = await client
+    .from("invoice_lines")
+    .update(restoreUpdate(snapshot))
+    .eq("id", line.id);
+  return { changed: !error, error: error?.message ?? null };
+}
+
+/** Annule une suppression (soft delete) : la ligne redevient visible. */
+export async function undeleteLineAction(
+  client: Client,
+  line: Pick<ActionLine, "id">,
+): Promise<ActionResult> {
+  const { error } = await client
+    .from("invoice_lines")
+    .update({ excluded: false })
+    .eq("id", line.id);
   return { changed: !error, error: error?.message ?? null };
 }
 

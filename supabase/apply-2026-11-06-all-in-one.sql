@@ -2,7 +2,7 @@
 -- ComparFacture : mise à jour de la base du 2026-11-06 (script unique)
 -- ============================================================================
 -- À coller tel quel dans Supabase Studio > SQL Editor > Run, sur le projet en ligne.
--- Regroupe 4 migrations de supabase/migrations/ (contenu repris à l'identique), dans l'ordre sûr.
+-- Regroupe 5 migrations de supabase/migrations/ (contenu repris à l'identique), dans l'ordre sûr.
 -- Tout-ou-rien (BEGIN/COMMIT) et rejouable sans dégât (tout est idempotent).
 -- Ne pas rejouer 20261007140000 ni 20261008100000 : déjà appliquées.
 --
@@ -14,7 +14,7 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 1/3  fournisseurs de rattachement + droits
+-- ÉTAPE 1/5  fournisseurs de rattachement + droits
 -- (source : supabase/migrations/20261106150000_add_matching_suppliers_scope.sql)
 -- ---------------------------------------------------------------------------
 
@@ -106,7 +106,7 @@ GRANT EXECUTE ON FUNCTION
 TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 2/3  identifiant Ozego tronqué (produits similaires)
+-- ÉTAPE 2/5  identifiant Ozego tronqué (produits similaires)
 -- (source : supabase/migrations/20261106180000_add_ozego_similar_key_rpcs.sql)
 -- ---------------------------------------------------------------------------
 
@@ -183,7 +183,7 @@ GRANT EXECUTE ON FUNCTION
 TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 3/3  suppression de l'étape « Ozego Même fournisseur »
+-- ÉTAPE 3/5  suppression de l'étape « Ozego Même fournisseur »
 -- (source : supabase/migrations/20261106160000_remove_ozego_meme_validated_stage.sql)
 -- ---------------------------------------------------------------------------
 
@@ -215,7 +215,7 @@ ALTER TABLE public.invoice_lines
     CHECK (validated_stage IN ('fournisseur', 'ozego', 'ozego-preferes'));
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 4/4  correctif de performance des fonctions de l'étape 2 (timeout Ozego)
+-- ÉTAPE 4/5  correctif de performance des fonctions de l'étape 2 (timeout Ozego)
 -- (source : supabase/migrations/20261109100000_fix_ozego_key_rpcs_timeout.sql)
 -- Doit rester APRÈS l'étape 2 : sinon un rejeu du script réinstallerait la version lente.
 -- ---------------------------------------------------------------------------
@@ -292,6 +292,52 @@ AS $$
   FROM best b
   JOIN counts c ON c.k = b.k;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- ÉTAPE 5/5  fonction de clé inlinable + index recréé + statistiques (lenteur résiduelle ≈ 1 s)
+-- (source : supabase/migrations/20261109110000_ozego_similar_key_inlinable.sql)
+-- Doit rester APRÈS les étapes 2 et 4 : sinon un rejeu réinstallerait la version lente.
+-- ---------------------------------------------------------------------------
+
+-- Suite de 20261109100000 : les fonctions à clé tronquée restaient lentes en ligne (≈ 1 s par appel,
+-- même pour UNE seule clé, contre 50 à 100 ms pour les fonctions à identifiant exact).
+--
+-- Cause : ozego_similar_key portait `SET search_path` (et STRICT). PostgreSQL n'inline jamais une
+-- fonction SQL qui a un SET, ni une fonction STRICT dont le corps contient un CASE : chaque ligne de
+-- catalog_products déclenche donc un vrai appel de fonction (≈ 55 µs), soit ≈ 1 s pour 17 800
+-- produits dès que le planificateur ne passe pas par l'index. Sans SET ni STRICT, la fonction est
+-- remplacée par son expression au moment de la planification : une lecture complète ne coûte plus que
+-- quelques dizaines de millisecondes, et l'index d'expression est reconnu de façon fiable.
+--
+-- Sans danger sans search_path : le corps n'utilise que des fonctions pg_catalog, qualifiées. Le
+-- résultat est strictement identique (NULL en entrée donne NULL : strpos(NULL) > 1 est NULL, donc
+-- la branche ELSE du CASE s'applique). Les requêtes des RPC répètent déjà `ozego_id IS NOT NULL`,
+-- ce qui suffit à prouver la couverture de l'index partiel.
+CREATE OR REPLACE FUNCTION public.ozego_similar_key(id text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT CASE
+    WHEN pg_catalog.strpos(pg_catalog.btrim(id), '.') > 1
+      THEN NULLIF(
+        pg_catalog.substr(pg_catalog.btrim(id), pg_catalog.strpos(pg_catalog.btrim(id), '.') + 1),
+        ''
+      )
+  END
+$$;
+
+-- Index recréé : le cache de définition des sessions déjà ouvertes (connexions du pool) peut garder
+-- l'ancienne forme de l'expression indexée ; recréer l'index force sa relecture.
+DROP INDEX IF EXISTS public.idx_catalog_products_ozego_similar_key;
+CREATE INDEX idx_catalog_products_ozego_similar_key
+  ON public.catalog_products (public.ozego_similar_key(ozego_id))
+  WHERE ozego_id IS NOT NULL;
+
+-- Statistiques à jour, y compris sur l'expression indexée (un import du catalogue de 17 000 produits
+-- laisse sinon des estimations périmées qui poussent le planificateur vers une lecture complète).
+ANALYZE public.catalog_products;
 
 COMMIT;
 

@@ -153,8 +153,13 @@ the user's Supabase bearer token.
    Reference matching only considers catalog products of the invoice's supplier
    (`src/lib/supplier-match.ts`: names compared by a key without generic words such as "SAS" or
    "France", no global fallback by reference, an ambiguous label gives no reference match). Any read
-   of `catalog_products` or `product_mappings` must page through the table (`fetchAllRows` from
-   `src/lib/paginate.ts` with a deterministic `.order("id")`): PostgREST caps every response at 1000 rows.
+   of a table that can exceed 1000 rows (`catalog_products`, `product_mappings`, set-returning
+   RPCs...) must go through `fetchAllRows` (`src/lib/paginate.ts`) with a deterministic
+   `.order("id")`. PostgREST `max-rows` was measured at 1000 on production (2026-11-09), so
+   `fetchAllRows` caps `pageSize` at 1000 and stops at the first page shorter than `pageSize`, with
+   no extra empty-page request. If the server cap ever dropped below 1000, a truncated page would
+   be taken for the last one and reads would silently come back incomplete: lower
+   `POSTGREST_MAX_ROWS` together with it. It propagates Supabase errors; never write a local copy.
 3. Manual correction in the invoice detail route (`src/routes/factures.$id.tsx`) writes back to
    `product_mappings`, which is what makes subsequent invoices from the same supplier auto-match.
 4. "Pack factor" (`src/lib/pack.ts`, `derivePackFactor`) normalizes invoice quantities/prices sold
@@ -186,18 +191,23 @@ migration against the remote/production project, which has real 1536-dim embeddi
 
 ### Ozego identifiers
 
-`catalog_products.ozego_id` groups equivalent products across suppliers; `src/lib/ozego.ts` calls
-the `cheapest_by_ozego` RPC to find the cheapest known price in a group, so an invoice line can be
-compared both against its directly-matched catalog product and against the best price across all
-suppliers for the same product group.
+`catalog_products.ozego_id` groups equivalent products across suppliers; `src/lib/ozego.ts` reads
+the priced variants of each group, so an invoice line can be compared both against its
+directly-matched catalog product and against the best price across all suppliers for the same
+product group. **Variants only**: `fetchOzegoVariants` is the single Ozego read (one request per
+family, keys and dotless ids), and `bestByOzego` is derived from the variants by
+`bestByOzegoFromVariants` (lowest price, ties on smallest `id`, like the SQL). `useOzegoComparison`
+caches on the sorted id set (`ozegoIdsKey`). `OzegoBest.variants_count` counts priced offers (the old
+`cheapest_by_ozego*` RPCs also counted unpriced ones); those RPCs stay in the database but the
+client no longer calls them.
 
 **Similar products = ozego_id without its first segment** (`ozegoSimilarKey` in `src/lib/ozego-key.ts`,
 SQL twin `ozego_similar_key`): `31.4.72.139` and `18.4.72.139` are the same product at two suppliers
 (`4.72.139`). The first segment is the supplier code (22 prefixes, each tied to one supplier across the
 ~10k ids of the local `Mercuriale OZ 2` export; 99% of the multi-supplier suffix groups share the same
-product name), the rest is category.subcategory.product. `fetchCheapestByOzego` / `fetchOzegoVariants` group
-on that key via `cheapest_by_ozego_key` / `catalog_variants_by_ozego_key` (migration `20261106180000`);
-ids without a dot keep the exact-match RPCs. Certainty: strong from data, not from oze-back code (the id is
+product name), the rest is category.subcategory.product. `fetchOzegoVariants` groups
+on that key via `catalog_variants_by_ozego_key` (migration `20261106180000`, sped up by
+`20261109100000` and `20261109110000`); ids without a dot use `catalog_variants_by_ozego`. Certainty: strong from data, not from oze-back code (the id is
 imported from files, never built there); ~1 to 15% of suffix groups mix differently-named products.
 
 `syncCatalogFromErp` (`src/lib/catalog.functions.ts`) pulls these groups from the oze-back ERP's
@@ -265,6 +275,18 @@ for invoice extraction (`structure.server.ts`) and, unlike the others, is expect
 shadcn/ui components (`src/components/ui/`, "new-york" style, see `components.json`) — add new
 ones via the shadcn CLI/aliases (`@/components`, `@/lib`, `@/hooks`) rather than hand-rolling
 primitives. All user-facing copy in this app is in French; keep new UI text consistent with that.
+Shared building blocks (reuse them, do not duplicate): `SectionTabs` (tab bar with `TabCount`
+counters), `DataTable` (`DataTableCard`: sticky header and end columns, density, status edge band,
+skeleton rows; styles in the `.data-table-scroll` block of `src/styles.css`), `ConfirmDialog` /
+`ConfirmDeleteDialog` (every deletion is confirmed, then offers an "Annuler" toast) and
+`StageComparisonTable` (the three comparison tables shared by the invoice page and the project
+view; computations in `stage-rows.ts`, exports in `stage-export.ts`).
+
+The URL is the source of truth for tabs, filters and pages (`src/lib/search-params.ts`: zod parse,
+serialize and patch of the search params; defaults never appear in the URL and invalid values fall
+back to the default). Do not mirror them in component state; write them with the page's
+`onSearchChange(patch, replace)`.
+
 Never show a raw error (`error.message`, API JSON) to users: show failures with `toastError(error)` from
 `src/lib/toast-error.ts` and render stored/unknown error text through `friendlyError` from
 `src/lib/errors.ts` (add a rule there for any new technical error worth explaining).
