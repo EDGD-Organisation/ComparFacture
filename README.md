@@ -3,8 +3,8 @@
 Application web qui permet, pour un prospect donné, d'importer ses factures fournisseurs
 (PDF/scan), d'en extraire automatiquement les lignes via IA, de les rapprocher d'un catalogue de
 référence, puis de comparer le prix facturé au prix catalogue et au meilleur prix connu pour le
-même produit (identifiant Ozego), y compris chez le même fournisseur, tous fournisseurs confondus,
-ou seulement chez les fournisseurs préférés du prospect.
+même produit (identifiant Ozego), tous fournisseurs confondus, ou seulement chez les fournisseurs
+préférés du prospect.
 
 Application TanStack Start adossée à un projet Supabase ; ce dépôt fonctionne aussi en
 développement **100 % local** grâce à Docker (voir plus bas).
@@ -61,14 +61,14 @@ Ni l'un ni l'autre n'est suivi par Git (`.env` est ignoré explicitement, `.env.
 
 ### Variables nécessaires
 
-| Variable                                                     | Où l'obtenir                                                                                      | Obligatoire en local ?                                   |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `SUPABASE_URL` / `VITE_SUPABASE_URL`                         | Sortie de `bunx supabase status` une fois la stack locale démarrée (§4)                           | Oui                                                      |
-| `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Idem                                                                                              | Oui                                                      |
-| `SUPABASE_PROJECT_ID` / `VITE_SUPABASE_PROJECT_ID`           | Idem (référence du projet, voir `supabase/config.toml`)                                           | Oui                                                      |
-| `SUPABASE_SERVICE_ROLE_KEY`                                  | Idem (clé service-role, ne jamais exposer côté client)                                            | Oui, pour les fonctions serveur admin                    |
+| Variable                                                     | Où l'obtenir                                                                                         | Obligatoire en local ?                                   |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `SUPABASE_URL` / `VITE_SUPABASE_URL`                         | Sortie de `bunx supabase status` une fois la stack locale démarrée (§4)                              | Oui                                                      |
+| `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Idem                                                                                                 | Oui                                                      |
+| `SUPABASE_PROJECT_ID` / `VITE_SUPABASE_PROJECT_ID`           | Idem (référence du projet, voir `supabase/config.toml`)                                              | Oui                                                      |
+| `SUPABASE_SERVICE_ROLE_KEY`                                  | Idem (clé service-role, ne jamais exposer côté client)                                               | Oui, pour les fonctions serveur admin                    |
 | `GEMINI_API_KEY`                                             | [Google AI Studio](https://aistudio.google.com/) — clé API directe (pas de passerelle intermédiaire) | **Oui** — sans elle, l'extraction IA des factures échoue |
-| `COMPARATIF_API_KEY`                                         | Fournie par le backend ERP externe ("oze-back") si vous synchronisez le catalogue depuis leur API | Non (seulement pour la synchro catalogue automatique)    |
+| `COMPARATIF_API_KEY`                                         | Fournie par le backend ERP externe ("oze-back") si vous synchronisez le catalogue depuis leur API    | Non (seulement pour la synchro catalogue automatique)    |
 
 Exemple de `.env.local` minimal une fois la stack Docker démarrée :
 
@@ -154,7 +154,9 @@ Le serveur de développement (Vite) démarre sur [http://localhost:8080](http://
 | `bun run format`                                           | Reformate tout le projet avec Prettier.                                                                                                                                              |
 | `bun run multimodal:test <fichiers…> --out resultats.json` | Teste l'extraction IA (Gemini) directement sur des fichiers locaux (PDF/image), sans toucher à Supabase — utile pour juger la qualité d'extraction sur un nouveau format de facture. |
 
-Il n'y a pas de suite de tests automatisés dans ce dépôt (pas de runner configuré).
+Les tests unitaires (`src/**/*.test.ts`) se lancent avec `bun test` ; `bunx tsc --noEmit -p
+tsconfig.test.json` les type (déclarations `bun:test` dans `test-types/`, sans installer `@types/bun`). La CI
+n'exécute pas encore les tests.
 
 ## 7. Aperçu des fonctionnalités
 
@@ -167,8 +169,8 @@ Il n'y a pas de suite de tests automatisés dans ce dépôt (pas de runner confi
   externe).
 - **Comparatif de prix** : écart entre le prix facturé et le prix catalogue, et entre le prix
   facturé et le meilleur prix connu pour le même groupe de produits (identifiant Ozego) — avec
-  trois angles de comparaison possibles : même fournisseur, tous fournisseurs (le moins cher), ou
-  seulement les fournisseurs préférés du prospect.
+  deux angles de comparaison possibles : tous fournisseurs (le moins cher), ou seulement les
+  fournisseurs préférés du prospect.
 - **Synchronisation catalogue** : import manuel (CSV) ou automatique depuis une API ERP externe
   (réglages disponibles dans l'onglet "Réglages" de l'application).
 

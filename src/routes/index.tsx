@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Users } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { SupplierMultiSelect } from "@/components/SupplierMultiSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ function ProspectsPage() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<ProspectStatus>("todo");
   const [deliveryDate, setDeliveryDate] = useState("");
+  const [matchingSuppliers, setMatchingSuppliers] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const prospectsQuery = useQuery({
@@ -89,6 +91,7 @@ function ProspectsPage() {
         notes: notes.trim() || null,
         status,
         delivery_date: deliveryDate || null,
+        matching_suppliers: matchingSuppliers,
       })
       .select("id")
       .single();
@@ -102,6 +105,7 @@ function ProspectsPage() {
     setNotes("");
     setStatus("todo");
     setDeliveryDate("");
+    setMatchingSuppliers([]);
     queryClient.invalidateQueries({ queryKey: ["prospects"] });
     void navigate({ to: "/comparatifs/$id", params: { id: data.id } });
   }
@@ -297,6 +301,18 @@ function ProspectsPage() {
                   onChange={(event) => setDeliveryDate(event.target.value)}
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="prospect-matching-suppliers">
+                Fournisseurs de rattachement (facultatif)
+              </Label>
+              <SupplierMultiSelect
+                id="prospect-matching-suppliers"
+                placeholder="Tout le catalogue"
+                description="Les factures ne seront rapprochées qu'avec ces fournisseurs."
+                value={matchingSuppliers}
+                onChange={setMatchingSuppliers}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="prospect-notes">Notes (facultatif)</Label>

@@ -1,100 +1,52 @@
-# Handoff — 2026-10-07 (rôles commercial/expert ajoutés)
+# Handoff — 2026-11-09 (points client 1 à 7, rien n'est encore commité)
 
-Working notes for whoever (human or agent) picks this project up next. This is a point-in-time
-status snapshot, not permanent documentation — **CLAUDE.md stays the authoritative technical
-reference** (architecture, pipeline, conventions); this file only covers what changed recently and
-what's still open. Delete or replace it once it's stale.
+Notes pour la personne (ou l'agent) qui reprend le projet. Instantané ponctuel, pas une
+documentation permanente : **CLAUDE.md reste la référence technique** (architecture, pipeline,
+conventions) ; ce fichier ne couvre que ce qui a changé récemment et ce qui reste ouvert. À
+remplacer ou supprimer dès qu'il est périmé.
 
-## Repo state right now
+## État du dépôt
 
-- Branch `develop` and `main` are both at commit `750f659` ("Normalize line endings and cleanup
-  formatting"), already pushed. Latest CI run, Docker build, and deploy all **succeeded**
-  (verified via the GitHub Actions API — this repo is public, so `curl
-  https://api.github.com/repos/EDGD-Organisation/ComparFacture/actions/runs` works without a
-  token).
-- No uncommitted changes of substance (only `.claude/settings.json`, which is the harness's own
-  auto-logged bash-permission allowlist, not app code).
-- User (`jack0237`) commits and pushes themselves once a fix is explained/verified — don't assume
-  you need to do it, but don't assume it's been skipped either; check `git log`/`git status`
-  before acting on "this is still broken" type reports, since the fix may already be live.
+- Branche `main`, HEAD `00ae21f` (« Rename roles to commercial/expert », 2026-10-08), identique à
+  `origin/main` d'après les références locales (pas de `git fetch` fait : non vérifié en ligne).
+- Tout le travail ci-dessous est **non commité** (17 fichiers modifiés, 26 non suivis au
+  2026-11-09). Par thème :
+  - rattachement fournisseurs : migrations `20261106150000`, `20261106160000`, `20261106180000`,
+    script `supabase/apply-2026-11-06-all-in-one.sql`, `SupplierMultiSelect`, `matching.server.ts`,
+    `supplier-match.ts` ;
+  - vue « Tous les rapprochements » : `ProspectMatchingView`, `line-actions.ts`,
+    `use-line-actions.ts`, `matching-view.ts`, `use-ozego-comparison.ts`, routes `comparatifs.$id`
+    et `factures.$id` ;
+  - identifiant Ozego et conditionnement : `ozego.ts`, `ozego-key.ts`, `pack.ts`, `PackFactorInput` ;
+  - lecture paginée : `paginate.ts` (`fetchAllRows`) ;
+  - tests et outillage : `src/lib/*.test.ts`, `test-types/`, `tsconfig.test.json`, script `test` ;
+  - docs et configuration : `CLAUDE.md`, `README.md`, `.claude/agents/*`, `.claude/settings.json`,
+    `supabase/production-bootstrap.sql` (avertissement en tête), `types.ts` (édité à la main).
 
-## What changed in this work cycle, roughly chronological
+## Ce qui a changé dans ce cycle (points client 1 à 7)
 
-1. **"Unité de négo + nom du fournisseur" column** added across the invoice comparison tables.
-2. **ERP sync bug fix**: `catalog_products.unit` wasn't being populated from the ERP sync — fixed
-   field mapping in `src/lib/catalog.functions.ts` (`weight`, not `order_unit` — see CLAUDE.md
-   "Ozego identifiers" for the full story, including why `order_unit` looks tempting but is wrong).
-3. **Column rename**: "Ligne facture" → "Désignation fournisseur" everywhere in
-   `src/routes/factures.$id.tsx`.
-4. **Gap color-coding bug fix** in `src/routes/comparatifs.$id.tsx`: three spots had the
-   écart/gap color convention inverted relative to `factures.$id.tsx` (positive gap = overpaying =
-   should be red/`text-destructive`, not green). Also relabeled "Meilleurs gains" →
-   "Lignes les plus coûteuses" since it was showing the biggest overpayments mislabeled as gains.
-5. **Soft-delete for invoice lines** ("Supprimer la ligne" trash icon, all 4 comparison tabs) —
-   `invoice_lines.excluded` boolean column
-   (`supabase/migrations/20260921120000_add_invoice_lines_excluded_flag.sql`), filtered out at the
-   query level everywhere (including the prospect-level aggregate in `comparatifs.$id.tsx`).
-   **Migration confirmed applied to the remote DB** (verified via direct REST query just now).
-6. **Filter toolbar** on the invoice detail page (`factures.$id.tsx`): free-text search
-   (reference/label, accent- and case-insensitive) + a "Toutes / Validées / Non validées" status
-   select. Only changes which rows render — KPI totals and the 3 Excel exports still use the full,
-   unfiltered line set on purpose.
-7. **"Voir le fichier original"** button (invoice list in `comparatifs.$id.tsx`, and the invoice
-   detail header in `factures.$id.tsx`) — generates a short-lived Supabase Storage signed URL and
-   opens the original PDF/scan in a new tab. No new storage infra needed — Supabase Storage is
-   already S3-compatible and the `invoices` bucket already existed.
-8. **Cascading validation lock** across the 4 comparison pages (Comparatif référence fournisseur →
-   Ozego Même fournisseur → Ozego Autres fournisseurs → Ozego Fournisseurs préférés, in that fixed
-   order): once a line is validated at one stage, it becomes read-only on every *later* stage, but
-   each stage can still validate its own not-yet-validated lines. Tracked via
-   `invoice_lines.validated_stage`
-   (`supabase/migrations/20260922090000_add_invoice_lines_validated_stage.sql`), logic in
-   `isLineLocked`/`STAGE_ORDER` in `factures.$id.tsx`. **Migration confirmed applied to the remote
-   DB.** The "Supprimer la ligne" delete action is deliberately *not* gated by this lock (deleting
-   isn't "modifying" the validated data) — flagged to the user as a judgment call, no objection
-   raised.
-9. **Removed everything Lovable-related** (the user confirmed the Supabase project is their own,
-   never Lovable-provisioned, and the app is no longer edited via Lovable's platform): dropped the
-   `@lovable.dev/vite-tanstack-config` npm dependency (replaced with vanilla Vite config wiring
-   TanStack Start's own official plugin + React + Tailwind + Nitro directly — **kept TanStack
-   Start itself**, which is an independent framework unrelated to Lovable, after the user asked
-   about removing it too and I talked through why that'd be a much bigger, separate rewrite),
-   regenerated `bun.lock` off the public npm registry (it had been pointing several unrelated
-   packages at a private Lovable registry mirror), deleted Lovable-preview-only dead code
-   (`lovable-error-reporting.ts`, `previewAuthStorage.ts` — both were no-ops outside Lovable's own
-   iframe), `.lovable/` → `docs/plan/`, removed `AGENTS.md`, scrubbed docs/comments.
-10. **Production bug, two rounds**: `Cannot find module 'onnxruntime-node'` then (after a too-narrow
-    first fix) `Cannot find module 'onnxruntime-common'` at runtime. Root cause: Nitro's build-time
-    dependency tracer doesn't follow the `createRequire(import.meta.url)(...)` indirection
-    `@huggingface/transformers` uses to load the ONNX native binding, so `.output/server`'s
-    self-traced `node_modules` silently missed it (and its own sub-dependencies). **Final fix**
-    (Dockerfile): a dedicated `prod-deps` build stage runs a real `bun install --production` (bun's
-    actual resolver, not a static tracer) and that complete `node_modules` is copied into the
-    runtime image wholesale, as a fallback underneath whatever Nitro did manage to trace. Verified
-    by replicating the exact runtime file layout locally and requiring the real package chain
-    end-to-end — not just reasoning about it.
-11. **CI "quality" job fix**: had been failing since 2026-09-22 across several commits (unrelated
-    to the onnxruntime work) — initially assumed to be the known pre-existing CRLF noise, but that
-    was a red herring (confirmed the actual committed git blobs were already clean LF). Real cause:
-    6 genuine prettier formatting violations introduced earlier in `factures.$id.tsx` and
-    `vite.config.ts` from hand-wrapping long lines instead of running the formatter. Fixed via
-    targeted `eslint --fix`. Also added `.gitattributes` (`* text=auto eol=lf`) so the long-standing
-    local Windows CRLF lint noise (documented in CLAUDE.md) stops recurring and stops being a
-    red herring in future debugging.
+1. **Fournisseurs de rattachement** à la création du comparatif : `prospects.matching_suppliers`,
+   composant `SupplierMultiSelect`, `matchLines` restreint à ces fournisseurs (liste vide = pas de
+   restriction).
+2. **Étape « Ozego Même fournisseur » supprimée** ; les lignes validées à cette étape passent à
+   `fournisseur` (migration `20261106160000`).
+3. **Vue « Tous les rapprochements »** avec la colonne « Désignation fournisseur ».
+4. **Conditionnement par défaut à 1** (`normalizePackFactor`, `src/lib/pack.ts`).
+5. **Identifiant Ozego tronqué** pour les produits similaires : `ozego-key.ts`, RPC
+   `cheapest_by_ozego_key` et `catalog_variants_by_ozego_key`.
+6. **Rapprochement par référence corrigé** : `supplier-match.ts`, catalogue lu en entier par tranches.
+7. **Vue de tous les rapprochements d'un comparatif** (`ProspectMatchingView`, `line-actions`) avec
+   re-rapprochement de toutes les factures en lot.
 
-12. **Nettoyage post-incident** (2026-10-07): secrets retirés de `settings.local.json`, image Docker allégée
-    (voir Open items).
+Ajouts : tests `bun test` (7 fichiers dans `src/lib/`), et les correctifs issus des relectures :
+rejeu de `processInvoice` limité aux factures en attente pour les non-experts, CHECK de 50
+fournisseurs maximum, REVOKE/GRANT des RPC, `fetchAllRows` partout où une table peut dépasser 1000
+lignes (synthèse du comparatif et RPC Ozego compris), invalidation des caches de lignes unifiée
+(`invalidateLineCaches`, y compris suppression d'une facture et re-rapprochement en lot).
 
-13. **Authentification + rôles commercial/expert** (2026-10-07, code écrit, **migration pas encore appliquée**):
-    connexion email/mot de passe (`/connexion`), rôles `commercial` (crée des comparatifs + upload de
-    factures, voit liste/statuts) et `expert` (= administrateur: tout, y compris rapprochement, catalogue, réglages,
-    page `/utilisateurs` pour créer les comptes). Migration
-    `supabase/migrations/20261007140000_add_roles_and_lock_down_rls.sql` (table `profiles`,
-    `prospects.created_by`, remplace toutes les politiques RLS `open_*`). Server functions protégées
-    par `requireSupabaseAuth` + `requireRole`; `serverSupabase()` passe sur le client service-role.
-    Détails dans CLAUDE.md, section "Authentication & roles". `tsc` et `vite build` passent; non
-    testé en conditions réelles (pas de Docker local).
+## À faire / ouvert
 
+<<<<<<< Updated upstream
 14. **Test comparatif Claude vs Gemini** (2026-10-16, aucune modif de prod): script
     `scripts/compare-extraction.ts` (`bun run compare:extraction <fichiers> --out x.json`), SDK
     `@anthropic-ai/sdk` en devDependency, `ANTHROPIC_API_KEY` dans `.env`. Sur 5 vraies factures
@@ -116,52 +68,49 @@ what's still open. Delete or replace it once it's stale.
     script `compare:extraction` conservé).
 
 ## Open items for the next agent
+=======
+- **Migrations** : coller `supabase/apply-2026-11-06-all-in-one.sql` dans le SQL Editor de Supabase.
+  Ordre : script **avant** le déploiement du code. Son étape 3 (« Même fournisseur ») n'est sûre
+  qu'après déploiement, ou si l'ancienne page n'est plus utilisée. Déjà appliqué ? **Non vérifié.**
+- Régénérer `src/integrations/supabase/types.ts` (édité à la main pour `matching_suppliers` et les RPC).
+- Relancer « Re-rapprocher toutes les factures » après le déploiement.
+- **Décisions en attente** :
+  - fichiers de factures réelles suivis par git dans un dépôt public : `Scan17-03-2026-131022.pdf`,
+    `sysco 2.jpg`, `testfiles/*.jpg`, `*-results.json`, `comparatif-Montval…xlsx` ;
+  - permissions de `.claude/settings.json` jugées trop larges par une relecture ;
+  - saisie vide du facteur de conditionnement : elle écrase une valeur réelle par 1 ;
+  - `bun test` absent de la CI (`.github/workflows/ci.yml` lance tsc, lint, build) ;
+  - favicon manquant.
+- **Dette** :
+  - le parsing de `syncCatalogFromErp` devrait vivre dans `catalog.server.ts` ;
+  - `supabase/production-bootstrap.sql` est périmé (avertissement en tête) ;
+  - le `project_id` de `supabase/config.toml` ne correspond pas au projet Supabase en ligne de
+    `.env` (ne **pas** écrire l'identifiant réel dans le dépôt, qui est public) ;
+  - `catalog.server.ts` garde sa propre copie de `fetchAllRows` qui ignore l'erreur Supabase
+    (`paginate.ts` la propage) ;
+  - lectures non paginées jugées sûres en pratique, à reconsidérer si les volumes changent : liste
+    des comparatifs (`index.tsx`), lignes d'une seule facture (`factures.$id.tsx`,
+    `runInvoiceRematch`).
+- L'étape « Valider » de la vue projet est alignée sur la page facture (`match_status !== "confirmed"`).
+- Pas exercé dans un navigateur : le branchement des routes n'est couvert que par `tsc` et le build.
+>>>>>>> Stashed changes
 
-- **Migration de renommage des rôles** (`20261008100000_rename_roles_expert_commercial.sql`): la
-  migration `20261007140000` a déjà été exécutée par l'utilisateur avec les anciens noms
-  (admin/expert); celle-ci les convertit (admin -> expert, expert -> commercial) et recrée
-  fonctions + politiques. **À exécuter dans le SQL Editor** (ne pas rejouer `20261007140000`).
-  Si le compte ozego@gmail.com a déjà été inséré avec le rôle `admin`, il devient `expert`
-  automatiquement; sinon utiliser la requête ci-dessous avec le rôle `expert`.
-- **À FAIRE pour mettre l'auth en service (dans cet ordre)**:
-  1. Créer le premier compte expert dans Supabase Studio (Authentication > Users > Add user, email +
-     mot de passe, "Auto confirm").
-  2. Coller et exécuter la migration `20261007140000_add_roles_and_lock_down_rls.sql` dans le SQL
-     Editor (dès cet instant, l'app actuelle sans connexion ne fonctionne plus).
-  3. Donner le rôle expert à ce compte:
-     `INSERT INTO public.profiles (user_id, email, role) SELECT id, email, 'expert' FROM auth.users WHERE email = 'ozego@gmail.com';`
-  4. Déployer le code (merge sur `main`). Vérifier que `SUPABASE_SERVICE_ROLE_KEY` est bien dans le
-     `.env` du VPS (déjà utilisé par la synchro ERP), puis tester: connexion expert, création d'un
-     compte commercial depuis `/utilisateurs`, connexion commercial (upload OK, pas d'accès au reste).
-  5. Régénérer `types.ts` (`bunx supabase gen types typescript --project-id ...`): `profiles` et
-     `prospects.created_by` y ont été ajoutés à la main en attendant.
-- **Sécurité**: le Storage et les RPC (`search_catalog`, `cheapest_by_ozego`...) ne sont plus
-  accessibles sans rôle; en local, `.env.local` doit contenir `SUPABASE_SERVICE_ROLE_KEY`.
-- **Plus tard**: restreindre les commerciaux à leurs propres comparatifs (voir CLAUDE.md).
+## Choses à savoir avant de toucher
 
-- **Factures bloquées en `processing`**: résolu (confirmé par l’utilisateur le 2026-10-07).
-- **Secrets dans `.claude/settings.local.json`**: les 16 entrées d’allowlist contenant des clés (anon, service-role,
-  `x-api-key` myozego) ont été supprimées du fichier le 2026-10-07 (gitignoré). Décision de l’utilisateur: pas de
-  rotation, simple suppression.
-- **Image Docker**: le stage `prod-deps` du `Dockerfile` supprime maintenant les binaires natifs
-  `onnxruntime-node` darwin/win32/linux-arm64 (garde seulement `linux/x64`, ~220MB de moins). Logique du `find`
-  simulée localement; **pas encore validée par un vrai `docker build`** (Docker non lancé) — à vérifier au prochain
-  run de la CI/déploiement (le conteneur doit démarrer et charger `onnxruntime-node`).
-- **Favicon**: `public/favicon.ico` toujours absent — l’utilisateur s’en occupera plus tard.
-- **Pre-existing, not touched**: `syncCatalogFromErp` in `catalog.functions.ts` has parsing logic that should
-  arguably live in `catalog.server.ts`, and skips some zod validation.
-
-## Things worth knowing before you touch anything
-
-- **No Claude co-author line in commits for this repo/session** — the user explicitly asked for
-  this early in the work cycle (standing instruction, not a one-off).
-- **DB migrations can't be applied by Claude directly** — no `SUPABASE_ACCESS_TOKEN` or DB
-  password exists anywhere in this environment, and local Docker Desktop isn't running either. Any
-  new migration needs the user to paste the SQL into Supabase Studio's SQL Editor themselves. Give
-  them the exact SQL, don't just say "run the migration."
-- **`supabase/migrations/20260824094934_*.sql`** has a known, deliberate, never-fixed syntax typo
-  — don't touch it, see CLAUDE.md "Local database (Docker)".
-- **`.claude/settings.local.json`** contains real plaintext secrets (gitignored, never commit it).
-- Docker Desktop has not been running in this environment at any point in this work cycle — Docker
-  build fixes were verified by replicating the runtime file layout and module resolution locally,
-  not by an actual `docker build`. Worth a real container build/run next time Docker is available.
+- **Pas de ligne co-auteur Claude dans les commits** (consigne permanente). L'utilisateur
+  (`jack0237`) commite et pousse lui-même ; vérifier `git log` et `git status` avant de croire
+  qu'un correctif manque.
+- **Les migrations ne s'appliquent pas depuis Claude** (ni jeton Supabase ni mot de passe de base
+  ici). Donner le SQL exact à coller dans le SQL Editor, pas seulement « lancer la migration ».
+- `supabase/migrations/20260824094934_*.sql` contient une faute de syntaxe connue et voulue : ne
+  pas y toucher (voir CLAUDE.md, « Local database »).
+- `.claude/settings.local.json` et `.env` contiennent des secrets : ne jamais les commiter ni les
+  recopier.
+- **Ne pas installer `@types/bun`** : `unplugin` le résout aussi et casse le typage de `fetch`.
+  Les types de test sont dans `test-types/bun-test.d.ts`.
+- La machine de développement a 8 Go de RAM : la pile Supabase locale Docker (~11 conteneurs) a
+  fait tuer le serveur de dev par manque de mémoire. Préférer le Supabase en ligne via `.env`
+  (attention : `.env.local` prend le pas sur `.env`).
+- Toute lecture d'une table qui peut dépasser 1000 lignes doit passer par `fetchAllRows` avec un
+  `.order(...)` déterministe (PostgREST plafonne chaque réponse à 1000 lignes). Cela vaut aussi
+  pour les RPC ensemblistes.

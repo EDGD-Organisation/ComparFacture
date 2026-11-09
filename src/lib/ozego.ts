@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 
+import { groupRowsByInputId, planOzegoLookup } from "./ozego-key";
+import { normalizePackFactor } from "./pack";
+import { fetchAllRows, type RangeQuery } from "./paginate";
+
 export type OzegoBest = {
   ozego_id: string;
   id: string;
@@ -13,14 +17,48 @@ export type OzegoBest = {
   variants_count: number;
 };
 
-/** Pour chaque identifiant Ozego, la référence la moins chère du groupe. */
+/**
+ * Ces RPC renvoient un ensemble de lignes que PostgREST plafonne à 1000 : lecture complète par
+ * tranches, triée sur une colonne unique pour que les pages ne se chevauchent pas.
+ */
+async function readAllRpcRows<T>(build: () => RangeQuery<T>): Promise<T[]> {
+  try {
+    return await fetchAllRows(build);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Comparaison Ozego indisponible : ${message}`);
+  }
+}
+
+/**
+ * Pour chaque identifiant Ozego, la référence la moins chère des produits similaires (même
+ * identifiant privé de son premier segment, voir `ozegoSimilarKey`). La Map est indexée par
+ * l'identifiant demandé ; `ozego_id` de chaque valeur est l'identifiant complet de l'offre.
+ */
 export async function fetchCheapestByOzego(ids: string[]): Promise<Map<string, OzegoBest>> {
-  const unique = [...new Set(ids.filter(Boolean))];
-  if (unique.length === 0) return new Map();
-  const { data, error } = await supabase.rpc("cheapest_by_ozego", { ids: unique });
-  if (error) throw new Error(error.message);
+  const plan = planOzegoLookup(ids);
   const map = new Map<string, OzegoBest>();
-  for (const row of (data ?? []) as OzegoBest[]) map.set(row.ozego_id, row);
+  if (plan.keys.length === 0 && plan.exactIds.length === 0) return map;
+  const [keyed, exact] = await Promise.all([
+    plan.keys.length > 0
+      ? readAllRpcRows<OzegoBest>(
+          () =>
+            supabase
+              .rpc("cheapest_by_ozego_key", { keys: plan.keys })
+              .order("ozego_id") as unknown as RangeQuery<OzegoBest>,
+        )
+      : [],
+    plan.exactIds.length > 0
+      ? readAllRpcRows<OzegoBest>(
+          () =>
+            supabase
+              .rpc("cheapest_by_ozego", { ids: plan.exactIds })
+              .order("ozego_id") as unknown as RangeQuery<OzegoBest>,
+        )
+      : [],
+  ]);
+  const grouped = groupRowsByInputId(plan, keyed, exact);
+  for (const [inputId, [best]] of grouped) if (best) map.set(inputId, best);
   return map;
 }
 
@@ -37,24 +75,35 @@ export type OzegoVariant = {
 };
 
 /**
- * Toutes les références actives d'un groupe Ozego (pas seulement la moins chère) —
- * nécessaire pour reproduire les 3 cas du comparatif manuel : prix chez le même
- * fournisseur que la facture, moins cher tous fournisseurs, moins cher parmi une
- * liste de fournisseurs préférés. Un seul aller-retour, filtrage fait ensuite en JS
- * avec `cheapestAmong` selon le cas voulu par ligne.
+ * Toutes les références actives des produits similaires d'un identifiant Ozego (même identifiant
+ * privé de son premier segment, voir `ozegoSimilarKey`), pas seulement la moins chère :
+ * nécessaire pour reproduire les 2 cas du comparatif manuel : moins cher tous fournisseurs,
+ * moins cher parmi une liste de fournisseurs préférés. Un seul aller-retour, filtrage fait ensuite
+ * en JS avec `cheapestAmong` selon le cas voulu par ligne. La Map est indexée par l'identifiant
+ * demandé ; `ozego_id` de chaque valeur est l'identifiant complet de l'offre.
  */
 export async function fetchOzegoVariants(ids: string[]): Promise<Map<string, OzegoVariant[]>> {
-  const unique = [...new Set(ids.filter(Boolean))];
-  const map = new Map<string, OzegoVariant[]>();
-  if (unique.length === 0) return map;
-  const { data, error } = await supabase.rpc("catalog_variants_by_ozego", { ids: unique });
-  if (error) throw new Error(error.message);
-  for (const row of (data ?? []) as OzegoVariant[]) {
-    const list = map.get(row.ozego_id) ?? [];
-    list.push(row);
-    map.set(row.ozego_id, list);
-  }
-  return map;
+  const plan = planOzegoLookup(ids);
+  if (plan.keys.length === 0 && plan.exactIds.length === 0) return new Map();
+  const [keyed, exact] = await Promise.all([
+    plan.keys.length > 0
+      ? readAllRpcRows<OzegoVariant>(
+          () =>
+            supabase
+              .rpc("catalog_variants_by_ozego_key", { keys: plan.keys })
+              .order("id") as unknown as RangeQuery<OzegoVariant>,
+        )
+      : [],
+    plan.exactIds.length > 0
+      ? readAllRpcRows<OzegoVariant>(
+          () =>
+            supabase
+              .rpc("catalog_variants_by_ozego", { ids: plan.exactIds })
+              .order("id") as unknown as RangeQuery<OzegoVariant>,
+        )
+      : [],
+  ]);
+  return groupRowsByInputId(plan, keyed, exact);
 }
 
 /**
@@ -90,7 +139,7 @@ export type OzegoLine = {
 /** Écart entre le prix facturé (ramené à l'unité) et le meilleur prix du groupe Ozego. */
 export function ozegoGap(line: OzegoLine, best: { price: number | null } | undefined | null) {
   if (!best || best.price === null || line.unit_price === null) return null;
-  const k = line.pack_factor && line.pack_factor > 0 ? line.pack_factor : 1;
+  const k = normalizePackFactor(line.pack_factor);
   const comparablePrice = line.unit_price / k;
   const unitGap = comparablePrice - best.price;
   const percentGap = best.price === 0 ? null : (unitGap / best.price) * 100;

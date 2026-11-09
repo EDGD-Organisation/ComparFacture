@@ -378,6 +378,7 @@ export type Database = {
           created_by: string | null;
           delivery_date: string | null;
           id: string;
+          matching_suppliers: string[];
           name: string;
           notes: string | null;
           preferred_suppliers: string[];
@@ -389,6 +390,7 @@ export type Database = {
           created_by?: string | null;
           delivery_date?: string | null;
           id?: string;
+          matching_suppliers?: string[];
           name: string;
           notes?: string | null;
           preferred_suppliers?: string[];
@@ -400,6 +402,7 @@ export type Database = {
           created_by?: string | null;
           delivery_date?: string | null;
           id?: string;
+          matching_suppliers?: string[];
           name?: string;
           notes?: string | null;
           preferred_suppliers?: string[];
@@ -451,8 +454,37 @@ export type Database = {
           unit: string;
         }[];
       };
+      catalog_variants_by_ozego_key: {
+        Args: { keys: string[] };
+        Returns: {
+          ean: string;
+          family: string;
+          id: string;
+          label: string;
+          ozego_id: string;
+          price: number;
+          reference: string;
+          supplier_name: string;
+          unit: string;
+        }[];
+      };
       cheapest_by_ozego: {
         Args: { ids: string[] };
+        Returns: {
+          ean: string;
+          family: string;
+          id: string;
+          label: string;
+          ozego_id: string;
+          price: number;
+          reference: string;
+          supplier_name: string;
+          unit: string;
+          variants_count: number;
+        }[];
+      };
+      cheapest_by_ozego_key: {
+        Args: { keys: string[] };
         Returns: {
           ean: string;
           family: string;
@@ -483,8 +515,23 @@ export type Database = {
           unit: string;
         }[];
       };
+      match_catalog_embedding_scoped: {
+        Args: { max_results?: number; query_embedding: string; supplier_names: string[] };
+        Returns: {
+          id: string;
+          label: string;
+          price: number;
+          reference: string;
+          similarity: number;
+          unit: string;
+        }[];
+      };
+      ozego_similar_key: {
+        Args: { id: string };
+        Returns: string;
+      };
       search_catalog: {
-        Args: { max_results?: number; q: string };
+        Args: { max_results?: number; q: string; supplier_names?: string[] };
         Returns: {
           ean: string;
           id: string;

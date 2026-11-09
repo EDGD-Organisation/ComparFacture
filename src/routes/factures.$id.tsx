@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { PackFactorInput } from "@/components/PackFactorInput";
 import { ProductPicker, type PickedProduct } from "@/components/ProductPicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { rematchInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
+<<<<<<< Updated upstream
 import { toastError } from "@/lib/toast-error";
 import { comparableUnitPrice } from "@/lib/pack";
 import {
@@ -35,6 +37,13 @@ import {
   type OzegoBest,
   type OzegoVariant,
 } from "@/lib/ozego";
+=======
+import { isLineLocked, type Stage } from "@/lib/line-actions";
+import { comparableUnitPrice, normalizePackFactor } from "@/lib/pack";
+import { cheapestAmong, ozegoGap } from "@/lib/ozego";
+import { invalidateLineCaches, useLineActions } from "@/lib/use-line-actions";
+import { useOzegoComparison } from "@/lib/use-ozego-comparison";
+>>>>>>> Stashed changes
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -119,28 +128,13 @@ function lineMatchesFilters(line: Line, search: string, statusFilter: StatusFilt
   return haystack.includes(needle);
 }
 
-/**
- * The 4 comparison pages that can validate a line's match, in their fixed
- * left-to-right order. Validating a line on one page locks it for editing on
- * every later page in this list, while earlier pages (and the page that did
- * the validating) stay editable — see `isLineLocked`.
- */
-const STAGE_ORDER = ["fournisseur", "ozego-meme", "ozego", "ozego-preferes"] as const;
-type Stage = (typeof STAGE_ORDER)[number];
-
-function isLineLocked(line: Line, stage: Stage): boolean {
-  const validatedIndex = STAGE_ORDER.indexOf(line.validated_stage as Stage);
-  if (validatedIndex === -1) return false;
-  return validatedIndex < STAGE_ORDER.indexOf(stage);
-}
-
 function InvoiceDetail() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
   const [picking, setPicking] = useState<Line | null>(null);
-  const [mode, setMode] = useState<
-    "fournisseur" | "ozego" | "recap" | "achat" | "ozego-meme" | "ozego-preferes"
-  >("recap");
+  const [mode, setMode] = useState<"fournisseur" | "ozego" | "recap" | "achat" | "ozego-preferes">(
+    "recap",
+  );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const rematch = useServerFn(rematchInvoice);
@@ -185,17 +179,7 @@ function InvoiceDetail() {
     .map((line) => line.catalog_products?.ozego_id ?? null)
     .filter((value): value is string => Boolean(value));
 
-  const ozegoQuery = useQuery({
-    queryKey: ["ozego-best", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: ozegoIds.length > 0,
-    queryFn: () => fetchCheapestByOzego(ozegoIds),
-  });
-
-  const ozegoVariantsQuery = useQuery({
-    queryKey: ["ozego-variants", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: ozegoIds.length > 0,
-    queryFn: () => fetchOzegoVariants(ozegoIds),
-  });
+  const { bestByOzego, variantsByOzego } = useOzegoComparison(ozegoIds);
 
   const prospectId = invoiceQuery.data?.prospect_id;
   const preferredSuppliersQuery = useQuery({
@@ -216,7 +200,7 @@ function InvoiceDetail() {
     mutationFn: () => rematch({ data: { invoiceId: id } }),
     onSuccess: () => {
       toast.success("Rapprochement relancé");
-      queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
+      invalidateLineCaches(queryClient, lineContext(), { ozego: false });
     },
     onError: (error: Error) => toastError(error),
   });
@@ -234,6 +218,7 @@ function InvoiceDetail() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
+<<<<<<< Updated upstream
   async function applyMatch(line: Line, product: PickedProduct | null, stage: Stage) {
     const { error } = await supabase
       .from("invoice_lines")
@@ -300,6 +285,19 @@ function InvoiceDetail() {
     queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
     toast.success("Ligne supprimée");
   }
+=======
+  const lineActions = useLineActions();
+  const lineContext = () => ({
+    invoiceId: id,
+    prospectId: invoiceQuery.data?.prospect_id ?? null,
+    supplierName: invoiceQuery.data?.supplier_name ?? null,
+  });
+
+  const applyMatch = (line: Line, product: PickedProduct | null, stage: Stage) =>
+    lineActions.applyMatch(line, lineContext(), product, stage);
+  const confirm = (line: Line) => lineActions.confirm(line, lineContext());
+  const deleteLine = (line: Line) => lineActions.deleteLine(line, lineContext());
+>>>>>>> Stashed changes
 
   async function saveLineField(
     line: Line,
@@ -323,9 +321,10 @@ function InvoiceDetail() {
       toastError(error);
       return;
     }
-    queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
+    invalidateLineCaches(queryClient, lineContext(), { ozego: false });
   }
 
+<<<<<<< Updated upstream
   async function savePackFactor(line: Line, value: number) {
     const factor = Number.isFinite(value) && value > 0 ? value : 1;
     const { error } = await supabase
@@ -360,6 +359,10 @@ function InvoiceDetail() {
     }
     queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
   }
+=======
+  const savePackFactor = (line: Line, value: number) =>
+    lineActions.savePackFactor(line, lineContext(), value);
+>>>>>>> Stashed changes
 
   const invoice = invoiceQuery.data;
   const lines = linesQuery.data ?? [];
@@ -385,7 +388,6 @@ function InvoiceDetail() {
     { total: 0, anomalies: 0, unmatched: 0 },
   );
 
-  const bestByOzego: Map<string, OzegoBest> = ozegoQuery.data ?? new Map();
   const ozegoTotals = lines.reduce(
     (acc, line) => {
       const best = line.catalog_products?.ozego_id
@@ -407,7 +409,7 @@ function InvoiceDetail() {
     (acc, line) => {
       const catalogPrice = line.catalog_products?.price ?? null;
       const sup = lineGap(line.unit_price, catalogPrice, line.quantity, line.pack_factor);
-      const k = sup?.packFactor ?? (line.pack_factor || 1);
+      const k = sup?.packFactor ?? normalizePackFactor(line.pack_factor);
       if (sup) {
         acc.invoicedTotal += (line.unit_price ?? 0) * line.quantity;
         acc.catalogTotal += (catalogPrice ?? 0) * line.quantity * k;
@@ -423,37 +425,13 @@ function InvoiceDetail() {
     { invoicedTotal: 0, catalogTotal: 0, bestTotal: 0 },
   );
 
-  const variantsByOzego: Map<string, OzegoVariant[]> = ozegoVariantsQuery.data ?? new Map();
   const preferredSuppliers = preferredSuppliersQuery.data ?? [];
-  const invoiceSupplier = invoice?.supplier_name || invoice?.file_name || null;
-
-  function sameSupplierRowFor(line: Line) {
-    const ozegoId = line.catalog_products?.ozego_id ?? null;
-    const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
-    return cheapestAmong(variants, invoiceSupplier ? [invoiceSupplier] : null);
-  }
 
   function preferredRowFor(line: Line) {
     const ozegoId = line.catalog_products?.ozego_id ?? null;
     const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
     return cheapestAmong(variants, preferredSuppliers);
   }
-
-  const sameSupplierTotals = lines.reduce(
-    (acc, line) => {
-      const row = sameSupplierRowFor(line);
-      const gap = ozegoGap(line, row);
-      if (gap) {
-        acc.total += gap.totalGap;
-        acc.bestTotal += (row?.price ?? 0) * line.quantity * gap.packFactor;
-        if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
-      } else {
-        acc.unmatched += 1;
-      }
-      return acc;
-    },
-    { total: 0, bestTotal: 0, anomalies: 0, unmatched: 0 },
-  );
 
   const preferredTotals = lines.reduce(
     (acc, line) => {
@@ -484,7 +462,7 @@ function InvoiceDetail() {
     const rows = lines.map((line) => {
       const catalogPrice = line.catalog_products?.price ?? null;
       const gap = lineGap(line.unit_price, catalogPrice, line.quantity, line.pack_factor);
-      const k = gap?.packFactor ?? (line.pack_factor || 1);
+      const k = gap?.packFactor ?? normalizePackFactor(line.pack_factor);
       const lineInvoiced = (line.unit_price ?? 0) * line.quantity;
       const lineCatalog = gap ? (catalogPrice ?? 0) * line.quantity * k : null;
       if (gap) {
@@ -583,7 +561,7 @@ function InvoiceDetail() {
       const ozegoId = line.catalog_products?.ozego_id ?? null;
       const best = ozegoId ? bestByOzego.get(ozegoId) : undefined;
       const gap = ozegoGap(line, best);
-      const k = gap?.packFactor ?? (line.pack_factor || 1);
+      const k = gap?.packFactor ?? normalizePackFactor(line.pack_factor);
       const lineInvoiced = (line.unit_price ?? 0) * line.quantity;
       const lineBest = gap ? (best?.price ?? 0) * line.quantity * k : null;
       if (gap) {
@@ -605,6 +583,7 @@ function InvoiceDetail() {
         "Identifiant Ozego": ozegoId ?? "",
         "Références du groupe": best?.variants_count ?? "",
         "Référence la moins chère": best?.reference ?? "",
+        "Identifiant Ozego de l'offre": best?.ozego_id ?? "",
         "Libellé Ozego": best?.label ?? "",
         "Fournisseur le moins cher": best?.supplier_name ?? "",
         EAN: best?.ean ?? "",
@@ -679,7 +658,7 @@ function InvoiceDetail() {
       const ozegoId = line.catalog_products?.ozego_id ?? null;
       const best = ozegoId ? bestByOzego.get(ozegoId) : undefined;
       const oz = ozegoGap(line, best);
-      const k = sup?.packFactor ?? (line.pack_factor || 1);
+      const k = sup?.packFactor ?? normalizePackFactor(line.pack_factor);
       return {
         "N° ligne": line.line_number,
         "Référence fournisseur": line.supplier_reference ?? "",
@@ -699,6 +678,7 @@ function InvoiceDetail() {
         "Identifiant Ozego": ozegoId ?? "",
         "Références du groupe": best?.variants_count ?? "",
         "Référence la moins chère": best?.reference ?? "",
+        "Identifiant Ozego de l'offre": best?.ozego_id ?? "",
         "Fournisseur le moins cher": best?.supplier_name ?? "",
         "Meilleur PU Ozego": best?.price ?? "",
         "Écart Ozego unitaire": oz ? oz.unitGap : "",
@@ -843,15 +823,6 @@ function InvoiceDetail() {
         </button>
         <button
           type="button"
-          onClick={() => setMode("ozego-meme")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-            mode === "ozego-meme" ? "bg-background shadow-sm" : "text-muted-foreground"
-          }`}
-        >
-          Ozego · Même fournisseur
-        </button>
-        <button
-          type="button"
           onClick={() => setMode("ozego")}
           className={`rounded-md px-4 py-2 text-sm font-medium transition ${
             mode === "ozego" ? "bg-background shadow-sm" : "text-muted-foreground"
@@ -971,9 +942,9 @@ function InvoiceDetail() {
                                 {line.unit}
                               </span>
                             ) : null}
-                            {(line.pack_factor ?? 1) !== 1 ? (
+                            {normalizePackFactor(line.pack_factor) !== 1 ? (
                               <span className="block text-xs text-muted-foreground">
-                                cond. ×{line.pack_factor}
+                                cond. ×{normalizePackFactor(line.pack_factor)}
                               </span>
                             ) : null}
                           </td>
@@ -1136,9 +1107,9 @@ function InvoiceDetail() {
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
                           {line.quantity}
-                          {(line.pack_factor ?? 1) !== 1 ? (
+                          {normalizePackFactor(line.pack_factor) !== 1 ? (
                             <span className="block text-xs text-muted-foreground">
-                              cond. ×{line.pack_factor}
+                              cond. ×{normalizePackFactor(line.pack_factor)}
                             </span>
                           ) : null}
                         </td>
@@ -1175,26 +1146,6 @@ function InvoiceDetail() {
             </CardContent>
           </Card>
         </>
-      ) : mode === "ozego-meme" ? (
-        <OzegoComparisonTable
-          lines={visibleLines}
-          allLinesCount={lines.length}
-          cardTitle={`Prix le moins cher chez ${invoiceSupplier ?? "ce fournisseur"}`}
-          referenceColumnLabel="Référence même fournisseur"
-          unmatchedLabel="Lignes sans offre chez ce fournisseur"
-          statLabel="Écart vs Ozego même fournisseur"
-          noOfferLabel="Hors Mercurial"
-          rowFor={sameSupplierRowFor}
-          totals={sameSupplierTotals}
-          invoicedTotal={invoicedTotal}
-          tolerance={tolerance}
-          onSaveLineField={(line, patch) => void saveLineField(line, patch)}
-          onSavePackFactor={(line, value) => void savePackFactor(line, value)}
-          onPick={setPicking}
-          onUnmatch={(line) => void applyMatch(line, null, "ozego-meme")}
-          onDelete={(line) => void deleteLine(line)}
-          stage="ozego-meme"
-        />
       ) : mode === "ozego" ? (
         <OzegoComparisonTable
           lines={visibleLines}
@@ -1311,13 +1262,13 @@ function InvoiceDetail() {
                                     {line.catalog_products.reference}
                                     <MatchBadge line={line} />
                                   </span>
-                                  {line.match_method !== "reference" ? (
+                                  {line.match_method === "libellé" ? (
                                     <span className="block text-xs text-warning-foreground">
-                                      Pas rapproché par la référence fournisseur (
-                                      {line.match_method === "mapping"
-                                        ? "correspondance mémorisée"
-                                        : "libellé"}
-                                      )
+                                      Pas rapproché par la référence fournisseur (libellé)
+                                    </span>
+                                  ) : line.match_method === "manuel" ? (
+                                    <span className="block text-xs text-muted-foreground">
+                                      Rapprochement manuel
                                     </span>
                                   ) : null}
                                 </>
@@ -1385,7 +1336,7 @@ function InvoiceDetail() {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <PackFactorInput
-                                value={line.pack_factor ?? 1}
+                                value={normalizePackFactor(line.pack_factor)}
                                 onSave={(value) => void savePackFactor(line, value)}
                               />
                             </td>
@@ -1575,32 +1526,6 @@ function EditableText({
   );
 }
 
-function PackFactorInput({ value, onSave }: { value: number; onSave: (value: number) => void }) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
-
-  const commit = () => {
-    const parsed = Number(draft.replace(",", "."));
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setDraft(String(value));
-      return;
-    }
-    if (parsed !== value) onSave(parsed);
-  };
-
-  return (
-    <Input
-      value={draft}
-      inputMode="decimal"
-      title="Nombre d'unités catalogue par unité facturée"
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-      className="ml-auto h-8 w-16 text-right tabular-nums"
-    />
-  );
-}
-
 function MatchBadge({ line }: { line: Line }) {
   if (line.match_status === "confirmed") {
     return (
@@ -1618,6 +1543,7 @@ function MatchBadge({ line }: { line: Line }) {
 }
 
 type OzegoRow = {
+  ozego_id: string;
   label: string;
   reference: string;
   supplier_name: string | null;
@@ -1626,8 +1552,8 @@ type OzegoRow = {
 };
 
 /**
- * Shared table for the 3 Ozego comparison views (même fournisseur / tous fournisseurs
- * moins cher / fournisseurs préférés) — same columns and edit actions, only `rowFor`
+ * Shared table for the 2 Ozego comparison views (tous fournisseurs moins cher /
+ * fournisseurs préférés) — same columns and edit actions, only `rowFor`
  * (which reference price to compare against) and the surrounding labels differ.
  */
 function OzegoComparisonTable({
@@ -1638,7 +1564,6 @@ function OzegoComparisonTable({
   referenceColumnLabel,
   unmatchedLabel,
   statLabel,
-  noOfferLabel = "—",
   rowFor,
   totals,
   invoicedTotal,
@@ -1653,18 +1578,13 @@ function OzegoComparisonTable({
   /** Unfiltered line count for this invoice, to tell "no lines at all" apart from
    * "the search/status filter matched nothing" in the empty-state message. */
   allLinesCount: number;
-  /** Which of the 4 pages this table is — used to lock editing for lines
+  /** Which of the 3 pages this table is — used to lock editing for lines
    * already validated on an earlier page, see `isLineLocked`. */
   stage: Stage;
   cardTitle: string;
   referenceColumnLabel: string;
   unmatchedLabel: string;
   statLabel: string;
-  /** Shown in the reference column when the product has an Ozego group but this
-   * supplier scope carries no variant for it (as opposed to no Ozego group at all,
-   * which keeps the "Sans identifiant" badge) — e.g. "Hors Mercurial" for the
-   * "même fournisseur" view, meaning the product isn't in that supplier's price list. */
-  noOfferLabel?: string;
   rowFor: (line: Line) => OzegoRow | undefined;
   totals: { total: number; bestTotal: number; anomalies: number; unmatched: number };
   invoicedTotal: number;
@@ -1760,11 +1680,13 @@ function OzegoComparisonTable({
                             <span className="block font-mono text-xs text-muted-foreground">
                               {row.reference}
                             </span>
+                            <span
+                              className="block font-mono text-xs text-muted-foreground"
+                              title="Identifiant Ozego complet de l'offre"
+                            >
+                              {row.ozego_id}
+                            </span>
                           </>
-                        ) : ozegoId ? (
-                          <span className="text-xs italic text-muted-foreground">
-                            {noOfferLabel}
-                          </span>
                         ) : (
                           "—"
                         )}
@@ -1822,10 +1744,12 @@ function OzegoComparisonTable({
                       </td>
                       <td className="px-4 py-3 text-right">
                         {locked ? (
-                          <span className="tabular-nums">×{line.pack_factor ?? 1}</span>
+                          <span className="tabular-nums">
+                            ×{normalizePackFactor(line.pack_factor)}
+                          </span>
                         ) : (
                           <PackFactorInput
-                            value={line.pack_factor ?? 1}
+                            value={normalizePackFactor(line.pack_factor)}
                             onSave={(value) => onSavePackFactor(line, value)}
                           />
                         )}

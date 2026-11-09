@@ -15,6 +15,18 @@ async function getThresholds(): Promise<Thresholds> {
   };
 }
 
+async function getMatchingSuppliers(invoiceId: string): Promise<string[]> {
+  const { data, error } = await serverSupabase()
+    .from("invoices")
+    .select("prospects(matching_suppliers)")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  // Échouer plutôt que renvoyer [] : une liste vide signifie « pas de restriction », et une
+  // erreur transitoire ne doit pas faire rapprocher sur tout le catalogue en silence.
+  if (error) throw new Error(error.message);
+  return data?.prospects?.matching_suppliers ?? [];
+}
+
 function toBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -25,14 +37,19 @@ function toBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-export async function runInvoiceProcessing(invoiceId: string) {
+export async function runInvoiceProcessing(
+  invoiceId: string,
+  options: { pendingOnly?: boolean } = {},
+) {
   const supabase = serverSupabase();
   const { data: invoice, error } = await supabase
     .from("invoices")
-    .select("id, file_path, file_name, file_mime")
+    .select("id, file_path, file_name, file_mime, status")
     .eq("id", invoiceId)
     .single();
   if (error || !invoice) throw new Error("Facture introuvable");
+  if (options.pendingOnly && invoice.status !== "pending")
+    throw new Error("Cette facture a déjà été analysée");
   if (!invoice.file_path) throw new Error("Aucun fichier associé à cette facture");
 
   await supabase
@@ -79,6 +96,7 @@ export async function runInvoiceProcessing(invoiceId: string) {
       })),
       extracted.supplier_name,
       thresholds,
+      await getMatchingSuppliers(invoiceId),
     );
 
     if (extracted.lines.length > 0) {
@@ -152,6 +170,7 @@ export async function runInvoiceRematch(invoiceId: string) {
     })),
     invoice?.supplier_name ?? null,
     thresholds,
+    await getMatchingSuppliers(invoiceId),
   );
 
   for (let i = 0; i < target.length; i += 1) {

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+<<<<<<< Updated upstream
 import {
   AlertCircle,
   ArrowLeft,
@@ -15,8 +16,13 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+=======
+import { ArrowLeft, Download, FileUp, Loader2, RefreshCw, Trash2 } from "lucide-react";
+>>>>>>> Stashed changes
 
 import { AppShell } from "@/components/AppShell";
+import { ProspectMatchingView } from "@/components/ProspectMatchingView";
+import { SupplierMultiSelect } from "@/components/SupplierMultiSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,21 +35,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 import { PROSPECT_STATUSES, statusMeta } from "@/lib/prospect-status";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { processInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, percent, shortDate } from "@/lib/format";
+<<<<<<< Updated upstream
 import { friendlyError } from "@/lib/errors";
 import { toastError } from "@/lib/toast-error";
 import {
@@ -54,6 +51,13 @@ import {
   type OzegoBest,
   type OzegoVariant,
 } from "@/lib/ozego";
+=======
+import { normalizePackFactor } from "@/lib/pack";
+import { fetchAllRows, type RangeQuery } from "@/lib/paginate";
+import { cheapestAmong, ozegoGap } from "@/lib/ozego";
+import { useOzegoComparison } from "@/lib/use-ozego-comparison";
+import { invalidateLineCaches } from "@/lib/use-line-actions";
+>>>>>>> Stashed changes
 
 export const Route = createFileRoute("/comparatifs/$id")({
   head: () => ({
@@ -127,6 +131,8 @@ function ProspectComparison() {
   const router = useRouter();
   const process = useServerFn(processInvoice);
   const { isExpert } = useAuth();
+  const [tab, setTab] = useState<"synthese" | "rapprochements">("synthese");
+  const showMatching = isExpert && tab === "rapprochements";
 
   const prospectQuery = useQuery({
     queryKey: ["prospect", id],
@@ -141,6 +147,7 @@ function ProspectComparison() {
     status?: string;
     delivery_date?: string | null;
     preferred_suppliers?: string[];
+    matching_suppliers?: string[];
   }) {
     const { error } = await supabase.from("prospects").update(patch).eq("id", id);
     if (error) {
@@ -150,24 +157,6 @@ function ProspectComparison() {
     queryClient.invalidateQueries({ queryKey: ["prospect", id] });
     queryClient.invalidateQueries({ queryKey: ["prospects"] });
   }
-
-  function togglePreferredSupplier(name: string) {
-    const current = prospectQuery.data?.preferred_suppliers ?? [];
-    const next = current.includes(name) ? current.filter((s) => s !== name) : [...current, name];
-    void updateProspect({ preferred_suppliers: next });
-  }
-
-  const suppliersQuery = useQuery({
-    queryKey: ["catalog-suppliers"],
-    enabled: isExpert,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("distinct_catalog_suppliers");
-      if (error) throw new Error(error.message);
-      return (data ?? [])
-        .map((row) => row.supplier_name)
-        .filter((name): name is string => Boolean(name));
-    },
-  });
 
   const invoicesQuery = useQuery({
     queryKey: ["invoices", id],
@@ -197,24 +186,31 @@ function ProspectComparison() {
   const analysisQuery = useQuery({
     queryKey: ["prospect-lines", id],
     enabled: isExpert,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("invoice_lines")
-        .select(
-          "id, line_number, supplier_reference, label, quantity, unit, unit_price, discount_percent, line_total, pack_factor, match_status, match_score, match_method, manual_override, matched_product_id, invoices!inner(id, supplier_name, file_name, invoice_number, invoice_date, currency, prospect_id), catalog_products(reference, label, price, unit, ean, family, ozego_id, supplier_name)",
-        )
-        .eq("invoices.prospect_id", id)
-        .eq("excluded", false);
-      if (error) throw new Error(error.message);
-      return data as unknown as AnalysisLine[];
-    },
+    queryFn: () =>
+      fetchAllRows<AnalysisLine>(
+        () =>
+          supabase
+            .from("invoice_lines")
+            .select(
+              "id, line_number, supplier_reference, label, quantity, unit, unit_price, discount_percent, line_total, pack_factor, match_status, match_score, match_method, manual_override, matched_product_id, invoices!inner(id, supplier_name, file_name, invoice_number, invoice_date, currency, prospect_id), catalog_products(reference, label, price, unit, ean, family, ozego_id, supplier_name)",
+            )
+            .eq("invoices.prospect_id", id)
+            .eq("excluded", false)
+            .order("id") as unknown as RangeQuery<AnalysisLine>,
+      ),
   });
 
   const analyse = useMutation({
     mutationFn: (invoiceId: string) => process({ data: { invoiceId } }),
     onSuccess: () => toast.success("Facture analysée"),
+<<<<<<< Updated upstream
     onError: (error: Error) => toastError(error),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["invoices", id] }),
+=======
+    onError: (error: Error) => toast.error(error.message),
+    onSettled: (_data, _error, invoiceId) =>
+      invalidateLineCaches(queryClient, { invoiceId, prospectId: id }, { ozego: false }),
+>>>>>>> Stashed changes
   });
 
   async function handleFiles(files: FileList | null) {
@@ -241,7 +237,11 @@ function ProspectComparison() {
           .single();
         if (error) throw new Error(error.message);
 
-        queryClient.invalidateQueries({ queryKey: ["invoices", id] });
+        invalidateLineCaches(
+          queryClient,
+          { invoiceId: invoice.id, prospectId: id },
+          { ozego: false },
+        );
         analyse.mutate(invoice.id);
       }
     } catch (error) {
@@ -254,8 +254,12 @@ function ProspectComparison() {
 
   async function remove(invoiceId: string, path: string | null) {
     if (path) await supabase.storage.from("invoices").remove([path]);
-    await supabase.from("invoices").delete().eq("id", invoiceId);
-    queryClient.invalidateQueries({ queryKey: ["invoices", id] });
+    const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    invalidateLineCaches(queryClient, { invoiceId, prospectId: id }, { ozego: false });
     router.invalidate();
     toast.success("Facture supprimée");
   }
@@ -282,19 +286,7 @@ function ProspectComparison() {
     .map((line) => line.catalog_products?.ozego_id ?? null)
     .filter((value): value is string => Boolean(value));
 
-  const ozegoQuery = useQuery({
-    queryKey: ["ozego-best", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: isExpert && ozegoIds.length > 0,
-    queryFn: () => fetchCheapestByOzego(ozegoIds),
-  });
-  const bestByOzego: Map<string, OzegoBest> = ozegoQuery.data ?? new Map();
-
-  const ozegoVariantsQuery = useQuery({
-    queryKey: ["ozego-variants", [...new Set(ozegoIds)].sort().join(",")],
-    enabled: isExpert && ozegoIds.length > 0,
-    queryFn: () => fetchOzegoVariants(ozegoIds),
-  });
-  const variantsByOzego: Map<string, OzegoVariant[]> = ozegoVariantsQuery.data ?? new Map();
+  const { bestByOzego, variantsByOzego } = useOzegoComparison(ozegoIds, isExpert);
   const preferredSuppliers = prospectQuery.data?.preferred_suppliers ?? [];
 
   const analysis = (() => {
@@ -373,8 +365,6 @@ function ProspectComparison() {
   const ozegoAnalysis = (() => {
     let invoiced = 0;
     let best = 0;
-    let sameSupplierTotal = 0;
-    let sameSupplierCount = 0;
     let preferredTotal = 0;
     let preferredCount = 0;
     let matched = 0;
@@ -410,13 +400,7 @@ function ProspectComparison() {
       entry.lines += 1;
       bySupplier.set(supplier, entry);
 
-      // Cas 1 : même produit Ozego, chez le fournisseur qui a émis CETTE facture.
-      const sameSupplierRow = cheapestAmong(variants, [supplier]);
-      if (sameSupplierRow?.price != null) {
-        sameSupplierTotal += sameSupplierRow.price * line.quantity * gap.packFactor;
-        sameSupplierCount += 1;
-      }
-      // Cas 3 : même produit Ozego, moins cher parmi la liste de fournisseurs préférés.
+      // Cas 2 : même produit Ozego, moins cher parmi la liste de fournisseurs préférés.
       const preferredRow = cheapestAmong(variants, preferredSuppliers);
       if (preferredRow?.price != null) {
         preferredTotal += preferredRow.price * line.quantity * gap.packFactor;
@@ -434,8 +418,6 @@ function ProspectComparison() {
       unmatched,
       above,
       suppliers: [...bySupplier.entries()].sort((a, b) => b[1].gap - a[1].gap),
-      sameSupplierTotal,
-      sameSupplierCount,
       preferredTotal,
       preferredCount,
     };
@@ -453,11 +435,6 @@ function ProspectComparison() {
       ["Total au meilleur prix Ozego (tous fournisseurs)", ozegoAnalysis.best],
       ["Écart global", ozegoAnalysis.saving],
       ["Écart global %", ozegoAnalysis.savingPercent ?? ""],
-      [
-        "Total au prix Ozego même fournisseur",
-        ozegoAnalysis.sameSupplierTotal,
-        `(${ozegoAnalysis.sameSupplierCount} ligne(s))`,
-      ],
       [
         "Total au meilleur prix fournisseurs préférés",
         ozegoAnalysis.preferredTotal,
@@ -484,12 +461,10 @@ function ProspectComparison() {
       const ozegoId = line.catalog_products?.ozego_id ?? null;
       const variants = ozegoId ? variantsByOzego.get(ozegoId) : undefined;
       const bestRow = ozegoId ? bestByOzego.get(ozegoId) : undefined;
-      const sameSupplierRow = cheapestAmong(variants, [supplier]);
       const preferredRow = cheapestAmong(variants, preferredSuppliers);
       const gap = ozegoGap(line, bestRow);
-      const sameSupplierGap = ozegoGap(line, sameSupplierRow);
       const preferredGap = ozegoGap(line, preferredRow);
-      const k = gap?.packFactor ?? (line.pack_factor || 1);
+      const k = gap?.packFactor ?? normalizePackFactor(line.pack_factor);
       const lineInvoiced = line.line_total ?? (line.unit_price ?? 0) * line.quantity;
       const lineBest = gap ? (bestRow?.price ?? 0) * line.quantity * k : "";
       return {
@@ -509,13 +484,10 @@ function ProspectComparison() {
         "Qté ramenée à l'unité": line.quantity * k,
         "PU comparable": gap ? gap.comparablePrice : "",
         "Identifiant Ozego": ozegoId ?? "",
-        // Cas 1 : ce que le fournisseur de LA FACTURE facture, vu par Ozego.
-        "[Même fournisseur] PU Ozego": sameSupplierRow?.price ?? "",
-        "[Même fournisseur] Écart %": sameSupplierGap?.percentGap ?? "",
-        "[Même fournisseur] Écart total": sameSupplierGap?.totalGap ?? "",
-        // Cas 2 : moins cher, tous fournisseurs confondus.
+        // Cas 1 : moins cher, tous fournisseurs confondus.
         "Références du groupe": bestRow?.variants_count ?? "",
         "[Tous fournisseurs] Référence": bestRow?.reference ?? "",
+        "[Tous fournisseurs] Identifiant Ozego de l'offre": bestRow?.ozego_id ?? "",
         "[Tous fournisseurs] Libellé Ozego": bestRow?.label ?? "",
         "[Tous fournisseurs] Fournisseur": bestRow?.supplier_name ?? "",
         EAN: bestRow?.ean ?? "",
@@ -526,9 +498,10 @@ function ProspectComparison() {
         "[Tous fournisseurs] Écart unitaire": gap ? gap.unitGap : "",
         "[Tous fournisseurs] Écart total": gap ? gap.totalGap : "",
         "[Tous fournisseurs] Écart %": gap?.percentGap ?? "",
-        // Cas 3 : moins cher, restreint à la liste de fournisseurs préférés du prospect.
+        // Cas 2 : moins cher, restreint à la liste de fournisseurs préférés du prospect.
         "[Préférés] Fournisseur": preferredRow?.supplier_name ?? "",
         "[Préférés] Référence": preferredRow?.reference ?? "",
+        "[Préférés] Identifiant Ozego de l'offre": preferredRow?.ozego_id ?? "",
         "[Préférés] PU Ozego": preferredRow?.price ?? "",
         "[Préférés] Écart %": preferredGap?.percentGap ?? "",
         "[Préférés] Écart total": preferredGap?.totalGap ?? "",
@@ -600,7 +573,7 @@ function ProspectComparison() {
         line.quantity,
         line.pack_factor,
       );
-      const k = gap?.packFactor ?? (line.pack_factor || 1);
+      const k = gap?.packFactor ?? normalizePackFactor(line.pack_factor);
       const lineInvoiced = line.line_total ?? (line.unit_price ?? 0) * line.quantity;
       const lineCatalog = gap ? (line.catalog_products?.price ?? 0) * line.quantity * k : "";
       return {
@@ -673,109 +646,72 @@ function ProspectComparison() {
         <ArrowLeft className="size-4" /> Retour aux comparatifs
       </Link>
 
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-semibold">
-            {prospectQuery.data?.name ?? "Comparatif"}
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            {prospectQuery.data?.notes || "Importez les factures fournisseurs de ce prospect."}
-          </p>
-        </div>
-        {isExpert ? (
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="grid gap-1">
-              <Label htmlFor="prospect-status">Statut</Label>
-              <Select
-                value={statusMeta(prospectQuery.data?.status).value}
-                onValueChange={(value) => void updateProspect({ status: value })}
-              >
-                <SelectTrigger id="prospect-status" className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROSPECT_STATUSES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor="prospect-delivery">Livraison souhaitée</Label>
-              <Input
-                id="prospect-delivery"
-                type="date"
-                className="w-44"
-                value={prospectQuery.data?.delivery_date ?? ""}
-                onChange={(event) =>
-                  void updateProspect({ delivery_date: event.target.value || null })
-                }
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor="prospect-preferred-suppliers">Fournisseurs préférés</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="prospect-preferred-suppliers"
-                    variant="outline"
-                    role="combobox"
-                    className="w-72 justify-between font-normal"
-                  >
-                    <span className="truncate text-left">
-                      {preferredSuppliers.length > 0
-                        ? `${preferredSuppliers.length} sélectionné${preferredSuppliers.length > 1 ? "s" : ""}`
-                        : "Aucun fournisseur choisi"}
-                    </span>
-                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0">
-                  <Command>
-                    <CommandInput placeholder="Rechercher un fournisseur…" />
-                    <CommandList>
-                      <CommandEmpty>Aucun fournisseur trouvé.</CommandEmpty>
-                      <CommandGroup>
-                        {(suppliersQuery.data ?? []).map((name) => (
-                          <CommandItem key={name} onSelect={() => togglePreferredSupplier(name)}>
-                            <Check
-                              className={cn(
-                                "mr-2 size-4",
-                                preferredSuppliers.includes(name) ? "opacity-100" : "opacity-0",
-                              )}
-                            />
-                            {name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {preferredSuppliers.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {preferredSuppliers.map((name) => (
-                    <Badge key={name} variant="secondary" className="gap-1 pr-1 font-normal">
-                      {name}
-                      <button
-                        type="button"
-                        onClick={() => togglePreferredSupplier(name)}
-                        aria-label={`Retirer ${name}`}
-                        className="rounded-full p-0.5 hover:bg-muted-foreground/20"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">Utilisés pour l'onglet Ozego.</p>
-            </div>
-          </div>
-        ) : null}
+      <div className="mb-8">
+        <h1 className="font-display text-3xl font-semibold">
+          {prospectQuery.data?.name ?? "Comparatif"}
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          {prospectQuery.data?.notes || "Importez les factures fournisseurs de ce prospect."}
+        </p>
       </div>
+
+      {isExpert ? (
+        <div className="mb-8 grid items-start gap-x-4 gap-y-5 rounded-lg border border-border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-2">
+            <Label htmlFor="prospect-status">Statut</Label>
+            <Select
+              disabled={!prospectQuery.data}
+              value={statusMeta(prospectQuery.data?.status).value}
+              onValueChange={(value) => void updateProspect({ status: value })}
+            >
+              <SelectTrigger id="prospect-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROSPECT_STATUSES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="prospect-delivery">Livraison souhaitée</Label>
+            <Input
+              id="prospect-delivery"
+              type="date"
+              disabled={!prospectQuery.data}
+              value={prospectQuery.data?.delivery_date ?? ""}
+              onChange={(event) =>
+                void updateProspect({ delivery_date: event.target.value || null })
+              }
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="prospect-matching-suppliers">Fournisseurs de rattachement</Label>
+            <SupplierMultiSelect
+              id="prospect-matching-suppliers"
+              placeholder="Tout le catalogue"
+              description="Limite le rapprochement. Pris en compte aux prochains traitements."
+              disabled={!prospectQuery.data}
+              value={prospectQuery.data?.matching_suppliers ?? []}
+              onChange={(next) => void updateProspect({ matching_suppliers: next })}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="prospect-preferred-suppliers">Fournisseurs préférés</Label>
+            <SupplierMultiSelect
+              id="prospect-preferred-suppliers"
+              placeholder="Aucun fournisseur préféré"
+              description="Utilisés dans l'onglet Ozego · Fournisseurs préférés."
+              disabled={!prospectQuery.data}
+              value={preferredSuppliers}
+              onChange={(next) => void updateProspect({ preferred_suppliers: next })}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <label
         onDragOver={(event) => event.preventDefault()}
@@ -804,7 +740,38 @@ function ProspectComparison() {
         </p>
       </label>
 
-      {analysisLines.length > 0 ? (
+      {isExpert ? (
+        <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1">
+          <button
+            type="button"
+            onClick={() => setTab("synthese")}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+              !showMatching ? "bg-background shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            Synthèse
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("rapprochements")}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+              showMatching ? "bg-background shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            Tous les rapprochements
+          </button>
+        </div>
+      ) : null}
+
+      {showMatching ? (
+        <ProspectMatchingView
+          prospectId={id}
+          prospectName={prospectQuery.data?.name ?? ""}
+          invoices={invoices}
+        />
+      ) : null}
+
+      {!showMatching && analysisLines.length > 0 ? (
         <div className="mb-8 space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard
@@ -928,12 +895,7 @@ function ProspectComparison() {
                   ? ` ${ozegoAnalysis.unmatched} sans identifiant Ozego.`
                   : " toutes les lignes rapprochées en ont un."}
               </p>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <SummaryCard
-                  label="Même fournisseur (facture)"
-                  value={euro(ozegoAnalysis.sameSupplierTotal)}
-                  hint={`${ozegoAnalysis.sameSupplierCount} ligne(s) trouvée(s) chez Ozego`}
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
                 <SummaryCard
                   label="Moins cher — tous fournisseurs"
                   value={euro(ozegoAnalysis.best)}
@@ -962,29 +924,53 @@ function ProspectComparison() {
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-display text-lg">
-            {invoices.length} facture{invoices.length > 1 ? "s" : ""}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {invoicesQuery.isLoading ? (
-            <p className="px-6 pb-6 text-sm text-muted-foreground">Chargement…</p>
-          ) : invoices.length === 0 ? (
-            <p className="px-6 pb-6 text-sm text-muted-foreground">
-              Aucune facture importée pour ce prospect.
-            </p>
-          ) : (
-            <div className="divide-y divide-border">
-              {invoices.map((invoice) => {
-                const status = STATUS_LABEL[invoice.status] ?? STATUS_LABEL["pending"]!;
-                const count =
-                  (invoice.invoice_lines as unknown as Array<{ count: number }>)?.[0]?.count ?? 0;
-                return (
-                  <div key={invoice.id} className="flex flex-wrap items-center gap-4 px-6 py-4">
-                    <div className="min-w-56 flex-1">
+      {!showMatching ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-lg">
+              {invoices.length} facture{invoices.length > 1 ? "s" : ""}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {invoicesQuery.isLoading ? (
+              <p className="px-6 pb-6 text-sm text-muted-foreground">Chargement…</p>
+            ) : invoices.length === 0 ? (
+              <p className="px-6 pb-6 text-sm text-muted-foreground">
+                Aucune facture importée pour ce prospect.
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {invoices.map((invoice) => {
+                  const status = STATUS_LABEL[invoice.status] ?? STATUS_LABEL["pending"]!;
+                  const count =
+                    (invoice.invoice_lines as unknown as Array<{ count: number }>)?.[0]?.count ?? 0;
+                  return (
+                    <div key={invoice.id} className="flex flex-wrap items-center gap-4 px-6 py-4">
+                      <div className="min-w-56 flex-1">
+                        {isExpert ? (
+                          <Link
+                            to="/factures/$id"
+                            params={{ id: invoice.id }}
+                            className="font-medium hover:text-primary"
+                          >
+                            {invoice.supplier_name || invoice.file_name || "Facture"}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">
+                            {invoice.supplier_name || invoice.file_name || "Facture"}
+                          </span>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                          {invoice.invoice_number ? `N° ${invoice.invoice_number} · ` : ""}
+                          {shortDate(invoice.invoice_date ?? invoice.created_at)}
+                          {isExpert ? ` · ${count} ligne${count > 1 ? "s" : ""}` : ""}
+                        </p>
+                        {invoice.error_message ? (
+                          <p className="mt-1 text-xs text-destructive">{invoice.error_message}</p>
+                        ) : null}
+                      </div>
                       {isExpert ? (
+<<<<<<< Updated upstream
                         <Link
                           to="/factures/$id"
                           params={{ id: invoice.id }}
@@ -1007,50 +993,50 @@ function ProspectComparison() {
                           <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
                           {friendlyError(invoice.error_message)}
                         </p>
+=======
+                        <span className="tabular-nums font-medium">{euro(invoice.total_ht)}</span>
+                      ) : null}
+                      <Badge className={status.className} variant="secondary">
+                        {status.label}
+                      </Badge>
+                      {isExpert ? (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Voir le fichier original"
+                            onClick={() => void viewInvoiceFile(invoice.file_path)}
+                          >
+                            <Download className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Relancer l'analyse"
+                            disabled={analyse.isPending}
+                            onClick={() => analyse.mutate(invoice.id)}
+                          >
+                            <RefreshCw className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Supprimer"
+                            onClick={() => void remove(invoice.id, invoice.file_path)}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+>>>>>>> Stashed changes
                       ) : null}
                     </div>
-                    {isExpert ? (
-                      <span className="tabular-nums font-medium">{euro(invoice.total_ht)}</span>
-                    ) : null}
-                    <Badge className={status.className} variant="secondary">
-                      {status.label}
-                    </Badge>
-                    {isExpert ? (
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Voir le fichier original"
-                          onClick={() => void viewInvoiceFile(invoice.file_path)}
-                        >
-                          <Download className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Relancer l'analyse"
-                          disabled={analyse.isPending}
-                          onClick={() => analyse.mutate(invoice.id)}
-                        >
-                          <RefreshCw className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Supprimer"
-                          onClick={() => void remove(invoice.id, invoice.file_path)}
-                        >
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </AppShell>
   );
 }

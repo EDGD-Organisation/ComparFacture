@@ -82,7 +82,7 @@ Règles :
 // ExtractedLine/ExtractedInvoice's types exactly.
 function normalizeLine(raw: Record<string, unknown>): ExtractedLine {
   return {
-    supplier_reference: (raw["supplier_reference"] as string) ?? null,
+    supplier_reference: (raw["supplier_reference"] as string | null | undefined)?.trim() ?? null,
     label: raw["label"] as string,
     quantity: raw["quantity"] as number,
     unit: (raw["unit"] as string) ?? null,

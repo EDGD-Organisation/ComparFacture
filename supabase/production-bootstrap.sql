@@ -1,4 +1,9 @@
 -- ============================================================================
+-- ATTENTION : fichier PÉRIMÉ. Il recrée les politiques ouvertes `open_*` (lecture et écriture pour
+-- anon) et ne contient ni les rôles commercial/expert ni les migrations postérieures au
+-- 2026-10-07. Sur un projet neuf, appliquer ensuite TOUTES les migrations de supabase/migrations/
+-- à partir de 20261007140000, ou régénérer ce fichier, avant d'exposer l'application.
+-- ============================================================================
 -- Bootstrap complet pour un NOUVEAU projet Supabase vide.
 -- ============================================================================
 -- À coller tel quel dans Supabase Studio → SQL Editor → Run, sur un projet

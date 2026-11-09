@@ -1,6 +1,8 @@
 import { embedTexts } from "./embeddings.server";
-import { derivePackFactor } from "./pack";
+import { derivePackFactor, normalizePackFactor } from "./pack";
 import { serverSupabase } from "./db.server";
+import { fetchAllRows } from "./paginate";
+import { resolveByReference, type RefCandidate } from "./supplier-match";
 import {
   isNonProductLine,
   normalizeLabel,
@@ -48,7 +50,9 @@ export async function matchLines(
   lines: MatchLineInput[],
   supplierName: string | null,
   thresholds: Thresholds,
+  scopeSuppliers: string[] = [],
 ): Promise<MatchResult[]> {
+  const scoped = scopeSuppliers.length > 0;
   const supabase = serverSupabase();
   const results: MatchResult[] = lines.map(() => ({
     matched_product_id: null,
@@ -58,16 +62,37 @@ export async function matchLines(
     pack_factor: 1,
   }));
 
-  const { data: mappings } = await supabase
-    .from("product_mappings")
-    .select("supplier_name, supplier_reference, supplier_label, product_id, pack_factor");
+  // PostgREST plafonne chaque réponse à 1000 lignes : lecture complète par tranches ordonnées.
+  const mappings = await fetchAllRows(() =>
+    supabase
+      .from("product_mappings")
+      .select("supplier_name, supplier_reference, supplier_label, product_id, pack_factor")
+      .order("id"),
+  );
+
+  // Comparatif restreint à certains fournisseurs : seuls leurs produits peuvent être rattachés.
+  const products = await fetchAllRows(() =>
+    supabase
+      .from("catalog_products")
+      .select("id, reference, ean, label, supplier_name")
+      .eq("is_active", true)
+      .order("id"),
+  );
+  const scopeSet = new Set(scopeSuppliers);
+  const allowedIds = new Set<string>();
+  for (const p of products) {
+    if (!scoped || (p.supplier_name && scopeSet.has(p.supplier_name))) {
+      allowedIds.add(p.id);
+    }
+  }
 
   const supplierKey = (supplierName ?? "").toLowerCase();
   const exactMappings = new Map<string, { product_id: string; pack_factor: number }>();
   const fuzzyMappings: Array<{ label: string; product_id: string; pack_factor: number }> = [];
-  for (const m of mappings ?? []) {
+  for (const m of mappings) {
+    if (scoped && !allowedIds.has(m.product_id)) continue;
     const name = (m.supplier_name ?? "").toLowerCase();
-    const value = { product_id: m.product_id, pack_factor: m.pack_factor ?? 1 };
+    const value = { product_id: m.product_id, pack_factor: normalizePackFactor(m.pack_factor) };
     exactMappings.set(
       `${name}::${(m.supplier_reference ?? m.supplier_label ?? "").toLowerCase()}`,
       value,
@@ -78,17 +103,22 @@ export async function matchLines(
   }
 
   // Index références / EAN du catalogue (une seule lecture).
-  // reference n'est unique que par fournisseur (deux fournisseurs peuvent partager la
-  // même référence) : refIndex est donc scopé par fournisseur. eanIndex reste global,
-  // un EAN identifie le même produit physique quel que soit le fournisseur qui le vend.
-  const { data: products } = await supabase
-    .from("catalog_products")
-    .select("id, reference, ean, supplier_name")
-    .eq("is_active", true);
-  const refIndex = new Map<string, string>();
+  // Une même référence peut désigner plusieurs produits (deux fournisseurs, voire un même
+  // fournisseur) : refIndex garde tous les porteurs sans écrasement, et le fournisseur est
+  // départagé à la recherche par sameSupplier, car le nom lu sur la facture diffère presque
+  // toujours du nom ERP. eanIndex reste global, un EAN identifie le même produit physique
+  // quel que soit le fournisseur qui le vend.
+  const refIndex = new Map<string, RefCandidate[]>();
   const eanIndex = new Map<string, string>();
-  for (const p of products ?? []) {
-    refIndex.set(`${(p.supplier_name ?? "").toLowerCase()}::${normalizeRef(p.reference)}`, p.id);
+  for (const p of products) {
+    if (!allowedIds.has(p.id)) continue;
+    const key = normalizeRef(p.reference);
+    if (key) {
+      const entry: RefCandidate = { id: p.id, supplier_name: p.supplier_name, label: p.label };
+      const list = refIndex.get(key);
+      if (list) list.push(entry);
+      else refIndex.set(key, [entry]);
+    }
     if (p.ean) eanIndex.set(normalizeRef(p.ean), p.id);
   }
 
@@ -113,7 +143,7 @@ export async function matchLines(
         match_score: 1,
         match_method: "mapping",
         match_status: "confirmed",
-        pack_factor: fuzzy.pack_factor > 0 ? fuzzy.pack_factor : derived,
+        pack_factor: fuzzy.pack_factor,
       };
       return;
     }
@@ -121,7 +151,9 @@ export async function matchLines(
     // 2. Référence / EAN exacts
     const ref = normalizeRef(line.supplier_reference);
     if (ref.length >= 3) {
-      const byRef = refIndex.get(`${supplierKey}::${ref}`) ?? eanIndex.get(ref);
+      const byRef =
+        resolveByReference(refIndex.get(ref) ?? [], supplierName, line.label)?.id ??
+        eanIndex.get(ref);
       if (byRef) {
         results[index] = {
           matched_product_id: byRef,
@@ -145,7 +177,11 @@ export async function matchLines(
     candidates.set(index, map);
     const query = normalizeLabel(lines[index]!.label);
     if (!query) continue;
-    const { data } = await supabase.rpc("search_catalog", { q: query, max_results: 8 });
+    const { data } = await supabase.rpc("search_catalog", {
+      q: query,
+      max_results: 8,
+      ...(scoped ? { supplier_names: scopeSuppliers } : {}),
+    });
     for (const row of data ?? []) {
       map.set(row.id, {
         id: row.id,
@@ -182,10 +218,14 @@ export async function matchLines(
       const vector = vectors[i];
       if (!vector) continue;
       const index = pending[i]!;
-      const { data } = await supabase.rpc("match_catalog_embedding", {
-        query_embedding: JSON.stringify(vector) as unknown as string,
-        max_results: 8,
-      });
+      const query_embedding = JSON.stringify(vector) as unknown as string;
+      const { data } = scoped
+        ? await supabase.rpc("match_catalog_embedding_scoped", {
+            query_embedding,
+            supplier_names: scopeSuppliers,
+            max_results: 8,
+          })
+        : await supabase.rpc("match_catalog_embedding", { query_embedding, max_results: 8 });
       const map = candidates.get(index)!;
       for (const row of data ?? []) {
         const similarity = typeof row.similarity === "number" ? row.similarity : 0;
@@ -208,9 +248,10 @@ export async function matchLines(
     const line = lines[index]!;
     const map = candidates.get(index);
     if (!map || map.size === 0) continue;
-    const packFactor = results[index]!.pack_factor;
-    const comparablePrice =
-      line.unit_price && packFactor > 0 ? line.unit_price / packFactor : (line.unit_price ?? null);
+    const packFactor = normalizePackFactor(results[index]!.pack_factor);
+    const comparablePrice = line.unit_price
+      ? line.unit_price / packFactor
+      : (line.unit_price ?? null);
 
     let best: { candidate: Candidate; score: number } | null = null;
     for (const candidate of map.values()) {

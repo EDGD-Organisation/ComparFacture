@@ -32,7 +32,9 @@ bun run lint         # eslint .
 bun run format       # prettier --write .
 ```
 
-There is no test suite in this repo (no test runner configured, no `*.test.ts` files).
+Tests: `bun test` runs `src/**/*.test.ts` (`bun:test`, typed by `test-types/bun-test.d.ts` through
+`tsconfig.test.json`: `bunx tsc --noEmit -p tsconfig.test.json`). Do not install `@types/bun`: it is also
+resolved by `unplugin` and breaks the global `fetch` typing. CI does not run the tests yet.
 
 `bunfig.toml` enforces a 24h supply-chain guard on new package versions (`minimumReleaseAge`).
 `minimumReleaseAgeExcludes` bypasses it per-package when genuinely needed — confirm with the user
@@ -148,6 +150,11 @@ the user's Supabase bearer token.
    score (`0.35*max(lexical,semantic) + 0.2*min(lexical,semantic) + 0.45*tokens`, plus size/price
    bonuses from `src/lib/match-normalize.ts`) and classified as `confirmed`/`review`/`unmatched`
    against thresholds from `app_settings`.
+   Reference matching only considers catalog products of the invoice's supplier
+   (`src/lib/supplier-match.ts`: names compared by a key without generic words such as "SAS" or
+   "France", no global fallback by reference, an ambiguous label gives no reference match). Any read
+   of `catalog_products` or `product_mappings` must page through the table (`fetchAllRows` from
+   `src/lib/paginate.ts` with a deterministic `.order("id")`): PostgREST caps every response at 1000 rows.
 3. Manual correction in the invoice detail route (`src/routes/factures.$id.tsx`) writes back to
    `product_mappings`, which is what makes subsequent invoices from the same supplier auto-match.
 4. "Pack factor" (`src/lib/pack.ts`, `derivePackFactor`) normalizes invoice quantities/prices sold
@@ -183,6 +190,15 @@ migration against the remote/production project, which has real 1536-dim embeddi
 the `cheapest_by_ozego` RPC to find the cheapest known price in a group, so an invoice line can be
 compared both against its directly-matched catalog product and against the best price across all
 suppliers for the same product group.
+
+**Similar products = ozego_id without its first segment** (`ozegoSimilarKey` in `src/lib/ozego-key.ts`,
+SQL twin `ozego_similar_key`): `31.4.72.139` and `18.4.72.139` are the same product at two suppliers
+(`4.72.139`). The first segment is the supplier code (22 prefixes, each tied to one supplier across the
+~10k ids of the local `Mercuriale OZ 2` export; 99% of the multi-supplier suffix groups share the same
+product name), the rest is category.subcategory.product. `fetchCheapestByOzego` / `fetchOzegoVariants` group
+on that key via `cheapest_by_ozego_key` / `catalog_variants_by_ozego_key` (migration `20261106180000`);
+ids without a dot keep the exact-match RPCs. Certainty: strong from data, not from oze-back code (the id is
+imported from files, never built there); ~1 to 15% of suffix groups mix differently-named products.
 
 `syncCatalogFromErp` (`src/lib/catalog.functions.ts`) pulls these groups from the oze-back ERP's
 `GET /produits/comparatif` endpoint (`app_settings.erp_api_url`), one `offers[]` entry per
@@ -326,3 +342,16 @@ context inline:
   style, French copy, shadcn usage, no speculative abstractions); reports only, doesn't fix.
 - **`claude-md-curator`** — keeps this file and README.md in sync with reality; use after
   significant architecture/deploy/tooling changes.
+- **`bug-investigator`** — read-only root-cause diagnosis of a bug report; names the agent that
+  should apply the fix.
+- **`ui-feature-builder`** — implements UI/client-request changes in routes and components
+  (French copy, shadcn, role-dependent screens, Excel exports).
+- **`auth-rls-reviewer`** — read-only review of RLS, `requireRole` coverage, service-role key and
+  secret handling; run on any change touching server functions, policies or accounts.
+
+Typical flow: **bug** -> `bug-investigator` -> the specialist it names -> `project-code-reviewer`
+(+ `server-boundary-reviewer` / `auth-rls-reviewer` when `src/lib` or access control changed).
+**Client request** -> `db-migration-writer` first if the schema changes (the user pastes the SQL
+in Supabase Studio), then `invoice-pipeline-specialist` or `ui-feature-builder`, then the same
+reviewers. `claude-md-curator` last when architecture or deploy changed. Agents do not commit;
+the user commits and pushes, and this repo's commits carry no Claude co-author line.

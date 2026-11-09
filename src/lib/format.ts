@@ -1,3 +1,5 @@
+import { normalizePackFactor } from "./pack";
+
 export const euro = (value: number | null | undefined, currency = "EUR") =>
   value === null || value === undefined
     ? "—"
@@ -29,7 +31,7 @@ export function lineGap(
   packFactor: number | null = 1,
 ) {
   if (invoicePrice === null || catalogPrice === null) return null;
-  const k = packFactor && packFactor > 0 ? packFactor : 1;
+  const k = normalizePackFactor(packFactor);
   const comparablePrice = invoicePrice / k;
   const unitGap = comparablePrice - catalogPrice;
   const percentGap = catalogPrice === 0 ? null : (unitGap / catalogPrice) * 100;
