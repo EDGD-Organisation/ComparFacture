@@ -2,7 +2,7 @@
 -- ComparFacture : mise à jour de la base du 2026-11-06 (script unique)
 -- ============================================================================
 -- À coller tel quel dans Supabase Studio > SQL Editor > Run, sur le projet en ligne.
--- Regroupe 5 migrations de supabase/migrations/ (contenu repris à l'identique), dans l'ordre sûr.
+-- Regroupe 6 migrations de supabase/migrations/ (contenu repris à l'identique), dans l'ordre sûr.
 -- Tout-ou-rien (BEGIN/COMMIT) et rejouable sans dégât (tout est idempotent).
 -- Ne pas rejouer 20261007140000 ni 20261008100000 : déjà appliquées.
 --
@@ -14,7 +14,7 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 1/5  fournisseurs de rattachement + droits
+-- ÉTAPE 1/6  fournisseurs de rattachement + droits
 -- (source : supabase/migrations/20261106150000_add_matching_suppliers_scope.sql)
 -- ---------------------------------------------------------------------------
 
@@ -106,7 +106,7 @@ GRANT EXECUTE ON FUNCTION
 TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 2/5  identifiant Ozego tronqué (produits similaires)
+-- ÉTAPE 2/6  identifiant Ozego tronqué (produits similaires)
 -- (source : supabase/migrations/20261106180000_add_ozego_similar_key_rpcs.sql)
 -- ---------------------------------------------------------------------------
 
@@ -183,7 +183,7 @@ GRANT EXECUTE ON FUNCTION
 TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 3/5  suppression de l'étape « Ozego Même fournisseur »
+-- ÉTAPE 3/6  suppression de l'étape « Ozego Même fournisseur »
 -- (source : supabase/migrations/20261106160000_remove_ozego_meme_validated_stage.sql)
 -- ---------------------------------------------------------------------------
 
@@ -215,7 +215,7 @@ ALTER TABLE public.invoice_lines
     CHECK (validated_stage IN ('fournisseur', 'ozego', 'ozego-preferes'));
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 4/5  correctif de performance des fonctions de l'étape 2 (timeout Ozego)
+-- ÉTAPE 4/6  correctif de performance des fonctions de l'étape 2 (timeout Ozego)
 -- (source : supabase/migrations/20261109100000_fix_ozego_key_rpcs_timeout.sql)
 -- Doit rester APRÈS l'étape 2 : sinon un rejeu du script réinstallerait la version lente.
 -- ---------------------------------------------------------------------------
@@ -294,7 +294,7 @@ AS $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- ÉTAPE 5/5  fonction de clé inlinable + index recréé + statistiques (lenteur résiduelle ≈ 1 s)
+-- ÉTAPE 5/6  fonction de clé inlinable + index recréé + statistiques (lenteur résiduelle ≈ 1 s)
 -- (source : supabase/migrations/20261109110000_ozego_similar_key_inlinable.sql)
 -- Doit rester APRÈS les étapes 2 et 4 : sinon un rejeu réinstallerait la version lente.
 -- ---------------------------------------------------------------------------
@@ -328,16 +328,114 @@ AS $$
   END
 $$;
 
--- Index recréé : le cache de définition des sessions déjà ouvertes (connexions du pool) peut garder
--- l'ancienne forme de l'expression indexée ; recréer l'index force sa relecture.
-DROP INDEX IF EXISTS public.idx_catalog_products_ozego_similar_key;
-CREATE INDEX idx_catalog_products_ozego_similar_key
+-- Index remplacé : le cache de définition des sessions déjà ouvertes (connexions du pool) peut garder
+-- l'ancienne forme de l'expression indexée ; ajouter un index force sa relecture.
+--
+-- Remplacement sans jamais laisser la table sans index : le nouvel index est construit AVANT que
+-- l'ancien soit supprimé, puis prend son nom. Aucune donnée n'est touchée (index dérivé, reconstruit
+-- depuis catalog_products). Si la transaction échoue, tout est annulé et l'ancien index reste en place.
+-- CONCURRENTLY est impossible ici (interdit dans une transaction, ce qu'est l'éditeur SQL Supabase) :
+-- la construction bloque les écritures sur catalog_products quelques centaines de ms (17 800 lignes).
+-- lock_timeout : si une requête longue tient la table, on abandonne au bout de 10 s au lieu de faire
+-- la queue (et de bloquer à leur tour toutes les requêtes suivantes) ; il suffit alors de relancer.
+SET LOCAL lock_timeout = '10s';
+CREATE INDEX IF NOT EXISTS idx_catalog_products_ozego_similar_key_new
   ON public.catalog_products (public.ozego_similar_key(ozego_id))
   WHERE ozego_id IS NOT NULL;
+DROP INDEX IF EXISTS public.idx_catalog_products_ozego_similar_key;
+ALTER INDEX public.idx_catalog_products_ozego_similar_key_new
+  RENAME TO idx_catalog_products_ozego_similar_key;
 
 -- Statistiques à jour, y compris sur l'expression indexée (un import du catalogue de 17 000 produits
 -- laisse sinon des estimations périmées qui poussent le planificateur vers une lecture complète).
 ANALYZE public.catalog_products;
+
+-- ---------------------------------------------------------------------------
+-- ÉTAPE 6/6  fonctions à clé tronquée en SECURITY DEFINER (lenteur résiduelle sous RLS : ≈ 4 s)
+-- (source : supabase/migrations/20261110100000_ozego_key_rpcs_security_definer.sql)
+-- Doit rester APRÈS les étapes 4 et 5 : sinon un rejeu réinstallerait la version lente.
+-- ---------------------------------------------------------------------------
+
+-- Cause (mesurée en ligne avec EXPLAIN ANALYZE, même requête) :
+--   rôle de l'éditeur SQL (sans RLS)   :   20 ms,    451 blocs lus
+--   rôle `authenticated` (avec RLS)    : 4 038 ms, 40 941 blocs lus (lecture complète de la table)
+-- catalog_products est protégée par la politique expert_all_catalog_products (USING is_expert()).
+-- Sous RLS, PostgreSQL n'autorise une condition utilisateur à servir de condition d'index que si
+-- toutes ses fonctions sont « leakproof » : btrim, substr et ozego_similar_key ne le sont pas
+-- (pg_proc.proleakproof = false), et un rôle non superutilisateur ne peut pas les marquer. L'index
+-- sur ozego_similar_key(ozego_id) n'est donc jamais utilisé par l'application, alors qu'il l'est dès
+-- que la RLS est contournée. La comparaison d'égalité de texte, elle, est leakproof : c'est pourquoi
+-- les fonctions à identifiant exact restent rapides.
+--
+-- Correctif : les deux fonctions passent en SECURITY DEFINER (la RLS n'est plus appliquée ligne par
+-- ligne) et reprennent la règle de la politique en garde explicite : `WHERE public.is_expert()`.
+-- Visibilité inchangée : seuls les experts voient des lignes, exactement comme avec la politique
+-- (un autre rôle reçoit un résultat vide). `is_expert()` n'a aucun argument ni colonne : la garde
+-- est évaluée une seule fois par appel. Même schéma que distinct_catalog_suppliers
+-- (20261106150000). search_path reste fixé, droits d'exécution inchangés (pas d'accès pour anon).
+--
+-- Un appelant en service_role (sans JWT utilisateur) recevrait donc un résultat vide : aucun
+-- appelant de ce type aujourd'hui (seul le client navigateur utilise ces fonctions).
+--
+-- Signatures, colonnes et valeurs de retour identiques : sans effet sur le code applicatif. Aucune
+-- donnée ni index n'est modifié (pas de réécriture de la table, qui porte des index HNSW et GIN).
+
+CREATE OR REPLACE FUNCTION public.catalog_variants_by_ozego_key(keys text[])
+RETURNS TABLE(ozego_id text, id uuid, reference text, label text, ean text, family text, unit text, price numeric, supplier_name text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT p.ozego_id, p.id, p.reference, p.label, p.ean, p.family, p.unit, p.price, p.supplier_name
+  FROM public.catalog_products p
+  WHERE public.is_expert()
+    AND p.is_active
+    AND p.price IS NOT NULL
+    AND p.ozego_id IS NOT NULL
+    AND public.ozego_similar_key(p.ozego_id) = ANY(keys);
+$$;
+
+CREATE OR REPLACE FUNCTION public.cheapest_by_ozego_key(keys text[])
+RETURNS TABLE(ozego_id text, id uuid, reference text, label text, ean text, family text, unit text, price numeric, supplier_name text, variants_count integer)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  WITH hits AS (
+    SELECT p.ozego_id, p.id, p.reference, p.label, p.ean, p.family, p.unit, p.price, p.supplier_name,
+           public.ozego_similar_key(p.ozego_id) AS k
+    FROM public.catalog_products p
+    WHERE public.is_expert()
+      AND p.is_active
+      AND p.ozego_id IS NOT NULL
+      AND public.ozego_similar_key(p.ozego_id) = ANY(keys)
+  ),
+  counts AS (
+    SELECT h.k, count(*)::int AS n FROM hits h GROUP BY h.k
+  ),
+  best AS (
+    SELECT DISTINCT ON (h.k) h.*
+    FROM hits h
+    WHERE h.price IS NOT NULL
+    ORDER BY h.k, h.price ASC, h.id
+  )
+  SELECT b.ozego_id, b.id, b.reference, b.label, b.ean, b.family, b.unit, b.price, b.supplier_name, c.n
+  FROM best b
+  JOIN counts c ON c.k = b.k;
+$$;
+
+-- Droits : CREATE OR REPLACE conserve les droits existants ; ils sont ré-affirmés pour que la
+-- migration se suffise à elle-même (jamais d'accès pour anon).
+REVOKE EXECUTE ON FUNCTION
+  public.catalog_variants_by_ozego_key(text[]),
+  public.cheapest_by_ozego_key(text[])
+FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION
+  public.catalog_variants_by_ozego_key(text[]),
+  public.cheapest_by_ozego_key(text[])
+TO authenticated, service_role;
 
 COMMIT;
 
@@ -361,4 +459,8 @@ SELECT
   NOT has_function_privilege('anon','public.search_catalog(text,integer,text[])','execute')
     AS anon_sans_acces,
   public.ozego_similar_key('31.4.72.139') = '4.72.139'
-    AS cle_ozego_ok;
+    AS cle_ozego_ok,
+  (SELECT count(*) = 2 AND bool_and(prosecdef) FROM pg_proc
+    WHERE pronamespace='public'::regnamespace
+      AND proname IN ('catalog_variants_by_ozego_key','cheapest_by_ozego_key'))
+    AS fonctions_cle_security_definer;
