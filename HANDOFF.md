@@ -68,16 +68,64 @@ lignes (synthèse du comparatif et RPC Ozego compris), invalidation des caches d
   d'au moins 15 rem et mention courte « Rapproché par libellé » (phrase complète en info-bulle).
   Non exercé dans un navigateur.
 
+## Prix à 3 décimales et colonne « Fournisseur » (2026-11-09)
+
+- **3 décimales sur tous les prix** : `euro()` (`src/lib/format.ts`, constante `PRICE_DIGITS`) affiche
+  toujours 3 décimales (PU, totaux, écarts, cartes de synthèse). Le champ éditable « PU facturé »
+  affiche aussi 3 décimales (`priceInput`) ; un champ non modifié n'est jamais réenregistré, pour que
+  la valeur arrondie n'écrase pas la valeur exacte. Les pourcentages (écart %, remise) et les
+  quantités ne changent pas.
+- **Exports Excel** : les valeurs restent exactes, seul le format de cellule `0.000` est posé sur les
+  colonnes de prix (`src/lib/xlsx-format.ts` : `formatPriceColumns`, `formatPriceRows`, `rowOf`).
+  Une colonne est un prix si son en-tête contient PU, prix, total, écart, facturé ou meilleur, sans « % ».
+  Un nouvel en-tête d'export doit respecter ce vocabulaire pour être formaté.
+- **Colonne « Fournisseur » en premier** (nom du fournisseur de la facture, `SupplierCell`) dans tous les
+  tableaux de lignes : les 3 comparatifs et « Rapprochements » de la vue projet, et les 5 onglets de la
+  page facture. Sur les tableaux partagés elle est activée par la prop `supplierName`. La cellule
+  « Facture » ne répète plus le fournisseur dans son sous-titre (rappelé dans l'info-bulle). Dans les
+  exports, « Fournisseur (facture) » est la première colonne (page facture : « Fournisseur »).
+- Vérifié sur les données réelles (Chrome) : vue projet (Rapprochements et Ozego autres fournisseurs),
+  page facture (Récapitulatif, Achat client, Comparatif fournisseur). Les fichiers Excel n'ont pas été
+  ouverts : seul le format de cellule est couvert par des tests.
+
+## Recherche du crayon « Modifier la correspondance » (2026-11-10)
+
+- `ProductPicker` (utilisé par la page facture et la vue projet) propose deux boutons sous le champ :
+  « Référence fournisseur » et « Désignation fournisseur » (de la ligne), qui remplissent la
+  recherche d'un clic. Le champ reste prérempli avec la référence, sinon la désignation.
+- La recherche est faite par **mots** (`src/lib/picker-search.ts`) : un filtre `or` par mot (référence,
+  libellé sans accent, EAN), tous les mots devant être présents. Avant, la phrase entière devait être une
+  sous-chaîne exacte, et une virgule dans la saisie cassait la requête (caractères `, ( ) " \ % *` retirés).
+- Si aucun produit ne contient tous les mots (au moins 2), repli sur le RPC `search_catalog` (similarité,
+  classé par score ; produits actifs seulement, sans famille). Vérifié dans Chrome sur la ligne « EPINARD
+  HACHE GALET IQF BIO ST2.5KG X2 » : 0 résultat auparavant, maintenant le produit 77004 en 4e position.
+
 ## Performance Ozego (2026-11-09)
 
 - **Migrations** : `20261109100000_fix_ozego_key_rpcs_timeout.sql` (réécriture de
   `cheapest_by_ozego_key`, `variants_count` calculé une seule fois, `ozego_similar_key` en STRICT
   pour que l'index partiel serve) et `20261109110000_ozego_similar_key_inlinable.sql` (fonction de
-  clé sans `SET` ni STRICT donc inlinable, index recréé, `ANALYZE`). Elles sont les **étapes 4 et 5**
-  du script unique `supabase/apply-2026-11-06-all-in-one.sql`, qui contient maintenant 5 étapes.
+  clé sans `SET` ni STRICT donc inlinable, index remplacé, `ANALYZE`). Elles sont les **étapes 4 et 5**
+  du script unique `supabase/apply-2026-11-06-all-in-one.sql`, qui contient maintenant 6 étapes (la
+  6e reprend `20261110100000_ozego_key_rpcs_security_definer.sql`, voir plus bas).
+  Le remplacement de l'index ne supprime l'ancien qu'après construction du nouveau (`_new`, puis
+  renommé), sous `lock_timeout` de 10 s : aucun `DROP` ne laisse la table sans index.
 - **Mesures** : en local, `cheapest_by_ozego_key` passe de 151 s à 18 ms pour 121 clés. En ligne,
   avant la seconde migration : 0,9 à 1,3 s par appel (les fonctions à identifiant exact : 44 à
-  180 ms). **À re-mesurer après application** de la seconde migration.
+  180 ms). Après application de la seconde migration (2026-11-10, 3 passes) : `catalog_variants_by_ozego_key`
+  ≈ 0,7 s, `cheapest_by_ozego_key` ≈ 0,7 à 0,8 s (2,5 s à froid), contre 47 à 94 ms pour
+  `catalog_variants_by_ozego`. Cause **confirmée** par `EXPLAIN ANALYZE` de la même requête : 20 ms
+  (451 blocs) sans RLS contre 4 038 ms (40 941 blocs, lecture complète) sous le rôle `authenticated`.
+  `catalog_products` est sous RLS (`expert_all_catalog_products`, `USING is_expert()`) et `btrim`,
+  `substr`, `ozego_similar_key` ne sont pas « leakproof » : l'index sur expression n'est jamais utilisé
+  par l'application. Correctif `20261110100000_ozego_key_rpcs_security_definer.sql` : les deux
+  fonctions à clé passent en `SECURITY DEFINER` avec la garde `WHERE public.is_expert()` (même
+  visibilité que la politique ; un appelant `service_role` sans JWT recevrait un résultat vide).
+  Une colonne générée `ozego_key` a été écartée : elle réécrirait la table et reconstruirait les index
+  HNSW et GIN sous verrou exclusif. **Mesuré après application (2026-11-10, 4 passes)** :
+  `catalog_variants_by_ozego_key` 48 à 94 ms, `cheapest_by_ozego_key` 41 à 71 ms (185 ms au premier
+  appel), même nombre de lignes qu'avant ; 10 clés en 49 à 88 ms. Non testé : le comportement d'un
+  compte `commercial` (résultat vide attendu, comme avec la politique).
 - **Côté client** : une seule lecture Ozego par écran. `useOzegoComparison` ne demande plus que les
   variantes (`catalog_variants_by_ozego_key`, plus `catalog_variants_by_ozego` pour les identifiants
   sans point) et déduit `bestByOzego` (`bestByOzegoFromVariants`, `src/lib/ozego.ts`) : prix le plus
@@ -91,11 +139,9 @@ lignes (synthèse du comparatif et RPC Ozego compris), invalidation des caches d
 
 ## À faire / ouvert
 
-- **Timeout et lenteur Ozego** : appliquer `20261109100000_fix_ozego_key_rpcs_timeout.sql` puis
-  `20261109110000_ozego_similar_key_inlinable.sql` (étapes 4 et 5 du script unique ; voir « Performance
-  Ozego »). Sans la première, « canceling statement due to statement timeout » au chargement. À
-  confirmer en ligne avec `EXPLAIN ANALYZE SELECT * FROM public.catalog_variants_by_ozego_key(ARRAY['4.72.139']);`
-  (le client n'appelle plus `cheapest_by_ozego_key`).
+- **Timeout et lenteur Ozego** : réglés. `20261109100000`, `20261109110000` et
+  `20261110100000` sont appliquées en ligne (appels à clé tronquée : 40 à 95 ms ; voir « Performance
+  Ozego »). Reste à vérifier l'écran « Ozego » lui-même avec un compte `commercial`.
 - **Migrations** : coller `supabase/apply-2026-11-06-all-in-one.sql` dans le SQL Editor de Supabase.
   Ordre : script **avant** le déploiement du code. Son étape 3 (« Même fournisseur ») n'est sûre
   qu'après déploiement, ou si l'ancienne page n'est plus utilisée. Déjà appliqué ? **Non vérifié.**

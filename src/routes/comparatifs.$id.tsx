@@ -41,6 +41,7 @@ import { useAuth } from "@/lib/auth";
 import { processInvoice } from "@/lib/invoices.functions";
 import { deleteInvoiceMessage } from "@/lib/delete-messages";
 import { euro, lineGap, percent, shortDate } from "@/lib/format";
+import { formatPriceColumns, formatPriceRows, rowOf } from "@/lib/xlsx-format";
 import { friendlyError } from "@/lib/errors";
 import { toastError } from "@/lib/toast-error";
 import { applyPatch, revertPatch } from "@/lib/optimistic-patch";
@@ -515,7 +516,11 @@ function ProspectComparison() {
       ]),
     ]);
     summary["!cols"] = [{ wch: 34 }, { wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(book, summary, "Synthèse");
+    XLSX.utils.book_append_sheet(
+      book,
+      formatPriceColumns(formatPriceRows(summary), rowOf(summary, "Fournisseur")),
+      "Synthèse",
+    );
 
     const rows = analysisLines.map((line) => {
       const supplier = line.invoices?.supplier_name || line.invoices?.file_name || "";
@@ -576,7 +581,7 @@ function ProspectComparison() {
     detail["!cols"] = Object.keys(rows[0] ?? {}).map((key) => ({
       wch: Math.max(14, key.length + 2),
     }));
-    XLSX.utils.book_append_sheet(book, detail, "Détail");
+    XLSX.utils.book_append_sheet(book, formatPriceColumns(detail), "Détail");
 
     const invoiceRows = invoices.map((inv) => ({
       Fournisseur: inv.supplier_name ?? "",
@@ -593,7 +598,7 @@ function ProspectComparison() {
       invoicesSheet["!cols"] = Object.keys(invoiceRows[0]!).map((key) => ({
         wch: Math.max(14, key.length + 2),
       }));
-      XLSX.utils.book_append_sheet(book, invoicesSheet, "Factures");
+      XLSX.utils.book_append_sheet(book, formatPriceColumns(invoicesSheet), "Factures");
     }
 
     const name = (prospectQuery.data?.name ?? "prospect").replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
@@ -625,7 +630,11 @@ function ProspectComparison() {
       ]),
     ]);
     summary["!cols"] = [{ wch: 34 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(book, summary, "Synthèse");
+    XLSX.utils.book_append_sheet(
+      book,
+      formatPriceColumns(formatPriceRows(summary), rowOf(summary, "Fournisseur")),
+      "Synthèse",
+    );
 
     const rows = analysisLines.map((line) => {
       const gap = lineGap(
@@ -674,7 +683,7 @@ function ProspectComparison() {
     detail["!cols"] = Object.keys(rows[0] ?? {}).map((key) => ({
       wch: Math.max(14, key.length + 2),
     }));
-    XLSX.utils.book_append_sheet(book, detail, "Détail");
+    XLSX.utils.book_append_sheet(book, formatPriceColumns(detail), "Détail");
 
     const invoiceRows = invoices.map((inv) => ({
       Fournisseur: inv.supplier_name ?? "",
@@ -691,7 +700,7 @@ function ProspectComparison() {
       invoicesSheet["!cols"] = Object.keys(invoiceRows[0]!).map((key) => ({
         wch: Math.max(14, key.length + 2),
       }));
-      XLSX.utils.book_append_sheet(book, invoicesSheet, "Factures");
+      XLSX.utils.book_append_sheet(book, formatPriceColumns(invoicesSheet), "Factures");
     }
 
     const name = (prospectQuery.data?.name ?? "prospect").replace(/[^a-zA-Z0-9-_ ]/g, "").trim();

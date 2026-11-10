@@ -304,6 +304,7 @@ describe("buildExportRows", () => {
         validated_stage: "ozego",
       }),
     ]);
+    expect(Object.keys(row!)[0]).toBe("Fournisseur (facture)");
     expect(Object.keys(row!)).toContain("Désignation fournisseur");
     expect(Object.keys(row!)).not.toContain("Libellé facture");
     expect(row).toEqual({

@@ -47,10 +47,10 @@ const OFFER_LABELS: Record<
 
 function invoiceColumns(line: MatchingLine): ExportRow {
   return {
+    "Fournisseur (facture)": supplierLabel(line),
     "Facture (fichier)": line.invoices?.file_name ?? "",
     "N° facture": line.invoices?.invoice_number ?? "",
     "Date facture": line.invoices?.invoice_date ?? "",
-    "Fournisseur (facture)": supplierLabel(line),
     "N° ligne": line.line_number,
     "Référence fournisseur": line.supplier_reference ?? "",
     "Désignation fournisseur": line.label,

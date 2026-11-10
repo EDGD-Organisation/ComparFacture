@@ -1,9 +1,21 @@
 import { normalizePackFactor } from "./pack";
 
+/** Nombre de décimales de toutes les données de prix (PU, totaux, écarts), à l'écran et dans les exports. */
+export const PRICE_DIGITS = 3;
+
 export const euro = (value: number | null | undefined, currency = "EUR") =>
   value === null || value === undefined
     ? "—"
-    : new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(value);
+    : new Intl.NumberFormat("fr-FR", {
+        style: "currency",
+        currency,
+        minimumFractionDigits: PRICE_DIGITS,
+        maximumFractionDigits: PRICE_DIGITS,
+      }).format(value);
+
+/** Prix saisissable (sans symbole ni séparateur de milliers) : « 12,500 ». */
+export const priceInput = (value: number | null | undefined) =>
+  value === null || value === undefined ? "" : value.toFixed(PRICE_DIGITS).replace(".", ",");
 
 export const percent = (value: number | null | undefined, digits = 1) =>
   value === null || value === undefined

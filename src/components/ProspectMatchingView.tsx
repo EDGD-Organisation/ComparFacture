@@ -70,6 +70,7 @@ import {
   ROW_STATUSES,
   sortLines,
   STATUS_LABEL,
+  supplierLabel,
   supplierOptions,
   type MatchingFilters,
   type MatchingLine,
@@ -98,6 +99,7 @@ import {
 import { matchingTabCounts } from "@/lib/tab-counts";
 import { invalidateLineCaches, useLineActions } from "@/lib/use-line-actions";
 import { useOzegoComparison } from "@/lib/use-ozego-comparison";
+import { formatPriceColumns, formatPriceRows } from "@/lib/xlsx-format";
 import { useReviewNavigation } from "@/lib/use-review-navigation";
 
 const PAGE_SIZE = 50;
@@ -319,7 +321,7 @@ export function ProspectMatchingView({
       const book = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(
         book,
-        sheet,
+        formatPriceColumns(formatPriceRows(sheet, rows.length + 2)),
         stage ? STAGE_EXPORT_SHEET[stage] : "Rapprochements",
       );
       const name = prospectName.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
@@ -378,6 +380,7 @@ export function ProspectMatchingView({
       void withBusy(line, () => lineActions.applyMatch(line, contextFor(line), null, stage)),
     onDelete: (line: MatchingLine) =>
       void withBusy(line, () => lineActions.deleteLine(line, contextFor(line))),
+    supplierName: supplierLabel,
     invoiceCell: (line: MatchingLine) => <InvoiceCell line={line} />,
     isBusy: (line: MatchingLine) => busy.has(line.id),
     highlightedId,

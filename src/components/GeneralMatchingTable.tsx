@@ -8,6 +8,7 @@ import {
 } from "@/components/BulkSelection";
 import { DataTableCard, TableMessage, TableSkeletonRows } from "@/components/DataTable";
 import { InvoiceCell } from "@/components/InvoiceCell";
+import { SupplierCell, SupplierHeader } from "@/components/SupplierCell";
 import { PackFactorInput } from "@/components/PackFactorInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
   methodLabel,
   rowStatus,
   STATUS_LABEL,
+  supplierLabel,
   type MatchingLine,
   type RowStatus,
 } from "@/lib/matching-view";
@@ -91,6 +93,7 @@ export function GeneralMatchingTable({
                 onChange={selection.onHeaderChange}
               />
             </th>
+            <SupplierHeader />
             <th className="px-4 py-3 font-medium">Facture</th>
             <th data-sticky="left" className="px-4 py-3 font-medium">
               Désignation fournisseur
@@ -106,7 +109,7 @@ export function GeneralMatchingTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {isLoading ? <TableSkeletonRows columns={9} selectable /> : null}
+          {isLoading ? <TableSkeletonRows columns={10} selectable /> : null}
           {lines.map((line) => {
             const product = line.catalog_products;
             const status = rowStatus(line);
@@ -135,6 +138,7 @@ export function GeneralMatchingTable({
                     />
                   ) : null}
                 </td>
+                <SupplierCell name={supplierLabel(line)} />
                 <td className="px-4 py-3">
                   <InvoiceCell line={line} />
                 </td>

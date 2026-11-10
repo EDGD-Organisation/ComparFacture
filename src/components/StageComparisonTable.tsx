@@ -13,11 +13,12 @@ import {
   TableSkeletonRows,
 } from "@/components/DataTable";
 import { PackFactorInput } from "@/components/PackFactorInput";
+import { SupplierCell, SupplierHeader } from "@/components/SupplierCell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { euro, percent } from "@/lib/format";
+import { euro, percent, priceInput } from "@/lib/format";
 import type { Stage } from "@/lib/line-actions";
 import { matchMethodNote, rowStatus, STATUS_LABEL, type RowStatus } from "@/lib/matching-view";
 import { HIGHLIGHT_ROW_CLASS } from "@/lib/use-review-navigation";
@@ -51,6 +52,8 @@ type SharedTableProps<L extends StageLine> = {
   onDelete: (line: L) => void;
   /** Present: adds a « Facture » column rendered by this function (project-wide view). */
   invoiceCell?: (line: L) => ReactNode;
+  /** Present: adds the « Fournisseur » column (supplier of the invoice), first in the table. */
+  supplierName?: (line: L) => string | null | undefined;
   isBusy?: (line: L) => boolean;
   /** Ligne mise en évidence ~2 s après « Prochaine ligne à vérifier ». */
   highlightedId?: string | null;
@@ -156,25 +159,31 @@ export function EditableCell({
   value,
   title,
   className,
+  format = (current) => (current === null ? "" : String(current)),
   onSave,
 }: {
   value: number | null;
   title: string;
   className?: string;
+  /** Texte affiché dans le champ (prix : 3 décimales). */
+  format?: (value: number | null) => string;
   onSave: (value: number | null) => void;
 }) {
-  const [draft, setDraft] = useState(value === null ? "" : String(value));
-  useEffect(() => setDraft(value === null ? "" : String(value)), [value]);
+  const shown = format(value);
+  const [draft, setDraft] = useState(shown);
+  useEffect(() => setDraft(shown), [shown]);
 
   const commit = () => {
     const raw = draft.trim();
+    // Champ non modifié : le texte affiché est arrondi, il ne doit jamais écraser la valeur exacte.
+    if (raw === shown) return;
     if (raw === "") {
       if (value !== null) onSave(null);
       return;
     }
     const parsed = Number(raw.replace(",", "."));
     if (!Number.isFinite(parsed) || parsed < 0) {
-      setDraft(value === null ? "" : String(value));
+      setDraft(shown);
       return;
     }
     if (parsed !== value) onSave(parsed);
@@ -304,6 +313,7 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
   onUnmatch,
   onDelete,
   invoiceCell,
+  supplierName,
   isBusy,
   highlightedId,
   showStats = true,
@@ -321,7 +331,7 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
   /** Barre de raccourcis de sélection, sous le titre de la carte. */
   toolbar?: ReactNode;
 }) {
-  const lead = (invoiceCell ? 1 : 0) + (selection ? 1 : 0);
+  const lead = (invoiceCell ? 1 : 0) + (supplierName ? 1 : 0) + (selection ? 1 : 0);
   return (
     <>
       {showStats ? (
@@ -371,6 +381,7 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
                   />
                 </th>
               ) : null}
+              {supplierName ? <SupplierHeader /> : null}
               {invoiceCell ? <th className="px-4 py-3 font-medium">Facture</th> : null}
               <th data-sticky="left" className="px-4 py-3 font-medium">
                 Désignation fournisseur
@@ -406,8 +417,14 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
                   {selection ? (
                     <SelectCell line={line} selection={selection} status={status} />
                   ) : null}
+                  {supplierName ? (
+                    <SupplierCell name={supplierName(line)} edge={selection ? undefined : status} />
+                  ) : null}
                   {invoiceCell ? (
-                    <td data-edge={selection ? undefined : status} className="px-4 py-3">
+                    <td
+                      data-edge={selection || supplierName ? undefined : status}
+                      className="px-4 py-3"
+                    >
                       {invoiceCell(line)}
                     </td>
                   ) : null}
@@ -495,7 +512,8 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
                       <EditableCell
                         value={line.unit_price}
                         title="Prix unitaire facturé"
-                        className="ml-auto w-24"
+                        className="ml-auto w-28"
+                        format={priceInput}
                         onSave={(value) => onSaveLineField(line, { unit_price: value })}
                       />
                     ) : (
@@ -633,6 +651,7 @@ export function OzegoComparisonTable<L extends StageLine>({
   onUnmatch,
   onDelete,
   invoiceCell,
+  supplierName,
   isBusy,
   highlightedId,
   showStats = true,
@@ -652,7 +671,7 @@ export function OzegoComparisonTable<L extends StageLine>({
   /** Prix Ozego en cours de chargement : cellules squelettes à la place des prix absents. */
   ozegoLoading?: boolean;
 }) {
-  const lead = invoiceCell ? 1 : 0;
+  const lead = (invoiceCell ? 1 : 0) + (supplierName ? 1 : 0);
   return (
     <>
       {showStats ? (
@@ -692,6 +711,7 @@ export function OzegoComparisonTable<L extends StageLine>({
         <table className="w-full text-sm">
           <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              {supplierName ? <SupplierHeader /> : null}
               {invoiceCell ? <th className="px-4 py-3 font-medium">Facture</th> : null}
               <th data-sticky="left" className="px-4 py-3 font-medium">
                 Désignation fournisseur
@@ -725,8 +745,9 @@ export function OzegoComparisonTable<L extends StageLine>({
                   {...rowAttributes(line.id, out, highlighted)}
                   className={rowClass(out, busy, highlighted)}
                 >
+                  {supplierName ? <SupplierCell name={supplierName(line)} edge={status} /> : null}
                   {invoiceCell ? (
-                    <td data-edge={status} className="px-4 py-3">
+                    <td data-edge={supplierName ? undefined : status} className="px-4 py-3">
                       {invoiceCell(line)}
                     </td>
                   ) : null}
@@ -819,7 +840,8 @@ export function OzegoComparisonTable<L extends StageLine>({
                       <EditableCell
                         value={line.unit_price}
                         title="Prix unitaire facturé"
-                        className="ml-auto w-24"
+                        className="ml-auto w-28"
+                        format={priceInput}
                         onSave={(value) => onSaveLineField(line, { unit_price: value })}
                       />
                     )}

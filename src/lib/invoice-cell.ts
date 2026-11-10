@@ -10,7 +10,7 @@ export type InvoiceCellSource = {
 export type InvoiceCellInfo = {
   /** Première ligne, tronquée à l'écran : fichier, sinon n° de facture. */
   title: string;
-  /** Petit texte dessous : fournisseur (s'il diffère du titre), date, ligne. Jamais le nom du fichier. */
+  /** Petit texte dessous : n° de facture, date, ligne. Ni le nom du fichier ni le fournisseur (colonne à part). */
   subtitle: string;
   /** Infobulle : tout, sans troncature. */
   fullTitle: string;
@@ -35,13 +35,11 @@ export function invoiceCellInfo(
       ? `N° ${invoice.invoice_number}`
       : null;
   const date = invoice?.invoice_date ? formatDate(invoice.invoice_date) : null;
-  const subtitle = [
-    supplier && supplier !== title ? supplier : null,
-    number,
-    date,
-    `ligne ${lineNumber}`,
-  ]
+  const detail = [number, date, `ligne ${lineNumber}`].filter(Boolean);
+  const subtitle = detail.join(" · ");
+  // Le fournisseur a sa propre colonne : il n'est rappelé que dans l'infobulle.
+  const fullTitle = [title, supplier && supplier !== title ? supplier : null, ...detail]
     .filter(Boolean)
     .join(" · ");
-  return { title, subtitle, fullTitle: `${title} · ${subtitle}` };
+  return { title, subtitle, fullTitle };
 }

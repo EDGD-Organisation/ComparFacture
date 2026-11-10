@@ -18,6 +18,7 @@ import {
   StatCard,
 } from "@/components/StageComparisonTable";
 import { SectionTabPanel, SectionTabs, type SectionTabItem } from "@/components/SectionTabs";
+import { SupplierCell, SupplierHeader } from "@/components/SupplierCell";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -32,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { rematchInvoice } from "@/lib/invoices.functions";
 import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
+import { formatPriceColumns, formatPriceRows } from "@/lib/xlsx-format";
 import { toastError } from "@/lib/toast-error";
 import { type Stage } from "@/lib/line-actions";
 import { comparableUnitPrice, normalizePackFactor } from "@/lib/pack";
@@ -318,6 +320,8 @@ function InvoiceDetail() {
     lineActions.savePackFactor(line, lineContext(), value);
 
   const invoice = invoiceQuery.data;
+  /** Fournisseur de la facture, première colonne de chaque tableau de lignes. */
+  const invoiceSupplier = () => invoice?.supplier_name ?? null;
   const lines = linesQuery.data ?? [];
   const visibleLines = lines.filter((line) => lineMatchesFilters(line, search, statusFilter));
   const tolerance = settingsQuery.data?.tolerance_percent ?? 2;
@@ -372,6 +376,7 @@ function InvoiceDetail() {
         catalogTotal += lineCatalog ?? 0;
       }
       return {
+        Fournisseur: invoice?.supplier_name ?? "",
         "N° ligne": line.line_number,
         "Référence fournisseur": line.supplier_reference ?? "",
         "Libellé facture": line.label,
@@ -440,9 +445,13 @@ function InvoiceDetail() {
       ],
     ]);
     header["!cols"] = [{ wch: 36 }, { wch: 28 }];
-    XLSX.utils.book_append_sheet(book, header, "Facture");
+    XLSX.utils.book_append_sheet(book, formatPriceRows(header), "Facture");
 
-    XLSX.utils.book_append_sheet(book, sheet, "Comparatif");
+    XLSX.utils.book_append_sheet(
+      book,
+      formatPriceColumns(formatPriceRows(sheet, rows.length + 2)),
+      "Comparatif",
+    );
     const name = (invoice?.supplier_name || invoice?.file_name || "facture")
       .replace(/[^a-zA-Z0-9-_ ]/g, "")
       .trim();
@@ -471,6 +480,7 @@ function InvoiceDetail() {
         bestTotal += lineBest ?? 0;
       }
       return {
+        Fournisseur: invoice?.supplier_name ?? "",
         "N° ligne": line.line_number,
         "Référence fournisseur": line.supplier_reference ?? "",
         "Libellé facture": line.label,
@@ -538,8 +548,12 @@ function InvoiceDetail() {
       ["Écart global %", bestTotal > 0 ? ((invoicedTotal - bestTotal) / bestTotal) * 100 : ""],
     ]);
     header["!cols"] = [{ wch: 36 }, { wch: 28 }];
-    XLSX.utils.book_append_sheet(book, header, "Facture");
-    XLSX.utils.book_append_sheet(book, sheet, "Comparatif Ozego");
+    XLSX.utils.book_append_sheet(book, formatPriceRows(header), "Facture");
+    XLSX.utils.book_append_sheet(
+      book,
+      formatPriceColumns(formatPriceRows(sheet, rows.length + 2)),
+      "Comparatif Ozego",
+    );
 
     const name = (invoice?.supplier_name || invoice?.file_name || "facture")
       .replace(/[^a-zA-Z0-9-_ ]/g, "")
@@ -562,6 +576,7 @@ function InvoiceDetail() {
       const oz = ozegoGap(line, best);
       const k = sup?.packFactor ?? normalizePackFactor(line.pack_factor);
       return {
+        Fournisseur: invoice?.supplier_name ?? "",
         "N° ligne": line.line_number,
         "Référence fournisseur": line.supplier_reference ?? "",
         "Libellé facture": line.label,
@@ -618,8 +633,12 @@ function InvoiceDetail() {
       ["Type de comparatif", "Récapitulatif (fournisseur + Ozego)"],
     ]);
     header["!cols"] = [{ wch: 36 }, { wch: 28 }];
-    XLSX.utils.book_append_sheet(book, header, "Facture");
-    XLSX.utils.book_append_sheet(book, sheet, "Récapitulatif");
+    XLSX.utils.book_append_sheet(book, formatPriceRows(header), "Facture");
+    XLSX.utils.book_append_sheet(
+      book,
+      formatPriceColumns(formatPriceRows(sheet, rows.length + 2)),
+      "Récapitulatif",
+    );
 
     const name = (invoice?.supplier_name || invoice?.file_name || "facture")
       .replace(/[^a-zA-Z0-9-_ ]/g, "")
@@ -796,6 +815,7 @@ function InvoiceDetail() {
                   <table className="w-full text-sm">
                     <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
+                        <SupplierHeader />
                         <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
                         <th className="px-4 py-3 text-right font-medium">Qté</th>
                         <th className="px-4 py-3 text-right font-medium">PU facturé</th>
@@ -809,7 +829,7 @@ function InvoiceDetail() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {linesQuery.isLoading ? <TableSkeletonRows columns={10} /> : null}
+                      {linesQuery.isLoading ? <TableSkeletonRows columns={11} /> : null}
                       {visibleLines.map((line) => {
                         const catalogPrice = line.catalog_products?.price ?? null;
                         const sup = lineGap(
@@ -836,6 +856,7 @@ function InvoiceDetail() {
                                   : undefined
                             }
                           >
+                            <SupplierCell name={invoice?.supplier_name} />
                             <td className="px-4 py-3">
                               <span className="block font-medium">{line.label}</span>
                               <span className="block font-mono text-xs text-muted-foreground">
@@ -944,7 +965,7 @@ function InvoiceDetail() {
                     </tbody>
                     <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
                       <tr>
-                        <td className="px-4 py-3" colSpan={4}>
+                        <td className="px-4 py-3" colSpan={5}>
                           Total
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
@@ -993,6 +1014,7 @@ function InvoiceDetail() {
                   <table className="w-full text-sm">
                     <thead className="border-y border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
+                        <SupplierHeader />
                         <th className="px-4 py-3 font-medium">Désignation fournisseur</th>
                         <th className="px-4 py-3 text-right font-medium">Qté</th>
                         <th className="px-4 py-3 font-medium">Unité</th>
@@ -1002,13 +1024,14 @@ function InvoiceDetail() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {linesQuery.isLoading ? <TableSkeletonRows columns={6} /> : null}
+                      {linesQuery.isLoading ? <TableSkeletonRows columns={7} /> : null}
                       {visibleLines.map((line) => (
                         <tr
                           key={line.id}
                           data-line-id={line.id}
                           className={highlightedId === line.id ? HIGHLIGHT_ROW_CLASS : undefined}
                         >
+                          <SupplierCell name={invoice?.supplier_name} />
                           <td className="px-4 py-3">
                             <span className="block font-medium">{line.label}</span>
                             <span className="block font-mono text-xs text-muted-foreground">
@@ -1038,7 +1061,7 @@ function InvoiceDetail() {
                     </tbody>
                     <tfoot className="border-t-2 border-border bg-muted/60 font-medium">
                       <tr>
-                        <td className="px-4 py-3" colSpan={5}>
+                        <td className="px-4 py-3" colSpan={6}>
                           Total
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
@@ -1056,6 +1079,7 @@ function InvoiceDetail() {
                 totals={{ ...ozegoTotals, bestTotal }}
                 invoicedTotal={invoicedTotal}
                 tolerance={tolerance}
+                supplierName={invoiceSupplier}
                 onSaveLineField={(line, patch) => void saveLineField(line, patch)}
                 onSavePackFactor={(line, value) => void savePackFactor(line, value)}
                 onPick={setPicking}
@@ -1075,6 +1099,7 @@ function InvoiceDetail() {
                 totals={preferredTotals}
                 invoicedTotal={invoicedTotal}
                 tolerance={tolerance}
+                supplierName={invoiceSupplier}
                 onSaveLineField={(line, patch) => void saveLineField(line, patch)}
                 onSavePackFactor={(line, value) => void savePackFactor(line, value)}
                 onPick={setPicking}
@@ -1095,6 +1120,7 @@ function InvoiceDetail() {
                   invoicedTotal={invoicedTotal}
                   catalogTotal={catalogTotal}
                   tolerance={tolerance}
+                  supplierName={invoiceSupplier}
                   onSaveLineField={(line, patch) => void saveLineField(line, patch)}
                   onSavePackFactor={(line, value) => void savePackFactor(line, value)}
                   onPick={setPicking}

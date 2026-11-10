@@ -17,8 +17,9 @@ describe("invoiceCellInfo", () => {
       date,
     );
     expect(info.title).toBe("facture-sysco-2026-10.pdf");
-    expect(info.subtitle).toBe("Sysco · N° F-12 · le 2026-10-03 · ligne 4");
+    expect(info.subtitle).toBe("N° F-12 · le 2026-10-03 · ligne 4");
     expect(info.subtitle).not.toContain("facture-sysco-2026-10.pdf");
+    expect(info.subtitle).not.toContain("Sysco");
     expect(info.fullTitle).toBe(
       "facture-sysco-2026-10.pdf · Sysco · N° F-12 · le 2026-10-03 · ligne 4",
     );

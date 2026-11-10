@@ -104,6 +104,7 @@ describe("buildStageExportRows : colonnes communes", () => {
       expect(row!["Facture (fichier)"]).toBe("a.pdf");
       expect(row!["N° facture"]).toBe("A-1");
       expect(row!["Fournisseur (facture)"]).toBe("Transgourmet");
+      expect(Object.keys(row!)[0]).toBe("Fournisseur (facture)");
       expect(row!["Coef. conditionnement"]).toBe(6);
       expect(row!["Qté ramenée à l'unité"]).toBe(12);
       expect(row!["PU comparable"]).toBe(2);
