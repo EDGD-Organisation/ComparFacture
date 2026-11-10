@@ -1152,6 +1152,8 @@ function InvoiceDetail() {
           open
           onOpenChange={(open) => !open && setPicking(null)}
           initialSearch={picking.supplier_reference || picking.label}
+          supplierReference={picking.supplier_reference}
+          supplierLabel={picking.label}
           onPick={(product) => void applyMatch(picking, product, mode as Stage)}
         />
       ) : null}

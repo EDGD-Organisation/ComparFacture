@@ -756,6 +756,8 @@ export function ProspectMatchingView({
             open
             onOpenChange={(open) => !open && setPicking(null)}
             initialSearch={picking.line.supplier_reference || picking.line.label}
+            supplierReference={picking.line.supplier_reference}
+            supplierLabel={picking.line.label}
             onPick={(product) =>
               void withBusy(picking.line, () =>
                 lineActions.applyMatch(
