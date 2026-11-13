@@ -1,4 +1,4 @@
-import { lineGap } from "./format";
+import { gapTone, lineGap, type GapTone } from "./format";
 import { isLineLocked, type Stage } from "./line-actions";
 import { cheapestAmong, ozegoGap, type OzegoBest, type OzegoVariant } from "./ozego";
 import { normalizePackFactor } from "./pack";
@@ -48,6 +48,21 @@ export function isOutOfTolerance(
   return Boolean(gap) && Math.abs(gap!.percentGap ?? 0) > tolerance;
 }
 
+export type OutOfToleranceTone = GapTone;
+
+/**
+ * Teinte d'une ligne hors tolérance, selon la convention de `gapTone` : « gain » (vert) quand on
+ * paie plus que la référence (économie possible), « loss » (rouge) quand on paie moins. `null`
+ * dans la tolérance ou sans écart calculable.
+ */
+export function outOfToleranceTone(
+  gap: { unitGap: number; percentGap: number | null } | null | undefined,
+  tolerance: number,
+): OutOfToleranceTone | null {
+  if (!gap || !isOutOfTolerance(gap, tolerance)) return null;
+  return gapTone(gap.unitGap);
+}
+
 export function ozegoIdsOf(lines: ReadonlyArray<Pick<StageLine, "catalog_products">>): string[] {
   return lines
     .map((line) => line.catalog_products?.ozego_id ?? null)
@@ -89,6 +104,7 @@ export function fournisseurLineView(line: StageLine, tolerance: number) {
     catalogPrice,
     gap,
     out: isOutOfTolerance(gap, tolerance),
+    tone: outOfToleranceTone(gap, tolerance),
     canConfirm: Boolean(line.catalog_products) && line.match_status !== "confirmed",
   };
 }
@@ -104,6 +120,7 @@ export function ozegoLineView(
     ozegoId: line.catalog_products?.ozego_id ?? null,
     gap,
     out: isOutOfTolerance(gap, tolerance),
+    tone: outOfToleranceTone(gap, tolerance),
     locked: isLineLocked(line, stage),
   };
 }
@@ -130,24 +147,29 @@ export function sumFournisseurGaps(lines: readonly StageLine[], tolerance: numbe
   );
 }
 
-/** Idem pour l'étape « Ozego · Autres fournisseurs » (meilleure offre du groupe). */
+/**
+ * Idem pour l'étape « Ozego · Autres fournisseurs » (meilleure offre du groupe).
+ * `invoicedTotal` = total facturé des seules lignes comparées (celles que `total` additionne) :
+ * `invoicedTotal - bestTotal` retombe ainsi sur `total`.
+ */
 export function sumOzegoGaps(
   lines: readonly StageLine[],
   bestByOzego: ReadonlyMap<string, OzegoBest>,
   tolerance: number,
-): GapTotals {
-  return lines.reduce<GapTotals>(
+): GapTotals & { invoicedTotal: number } {
+  return lines.reduce<GapTotals & { invoicedTotal: number }>(
     (acc, line) => {
       const gap = ozegoGap(line, bestRowFor(line, bestByOzego));
       if (gap) {
         acc.total += gap.totalGap;
+        acc.invoicedTotal += (line.unit_price ?? 0) * line.quantity;
         if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
       } else {
         acc.unmatched += 1;
       }
       return acc;
     },
-    { total: 0, anomalies: 0, unmatched: 0 },
+    { total: 0, anomalies: 0, unmatched: 0, invoicedTotal: 0 },
   );
 }
 
@@ -157,13 +179,14 @@ export function sumPreferredGaps(
   variantsByOzego: ReadonlyMap<string, OzegoVariant[]>,
   preferredSuppliers: string[],
   tolerance: number,
-): GapTotals & { bestTotal: number } {
-  return lines.reduce<GapTotals & { bestTotal: number }>(
+): GapTotals & { bestTotal: number; invoicedTotal: number } {
+  return lines.reduce<GapTotals & { bestTotal: number; invoicedTotal: number }>(
     (acc, line) => {
       const row = preferredRowFor(line, variantsByOzego, preferredSuppliers);
       const gap = ozegoGap(line, row);
       if (gap) {
         acc.total += gap.totalGap;
+        acc.invoicedTotal += (line.unit_price ?? 0) * line.quantity;
         acc.bestTotal += (row?.price ?? 0) * line.quantity * gap.packFactor;
         if (Math.abs(gap.percentGap ?? 0) > tolerance) acc.anomalies += 1;
       } else {
@@ -171,7 +194,7 @@ export function sumPreferredGaps(
       }
       return acc;
     },
-    { total: 0, bestTotal: 0, anomalies: 0, unmatched: 0 },
+    { total: 0, bestTotal: 0, invoicedTotal: 0, anomalies: 0, unmatched: 0 },
   );
 }
 

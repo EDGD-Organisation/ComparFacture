@@ -196,8 +196,12 @@
   scroll-margin-top: 4rem;
 }
 
-.data-table-scroll tbody tr[data-out="true"] {
+.data-table-scroll tbody tr[data-out="loss"] {
   --row-bg: color-mix(in oklab, var(--destructive) 5%, var(--card));
+}
+
+.data-table-scroll tbody tr[data-out="gain"] {
+  --row-bg: color-mix(in oklab, var(--success) 5%, var(--card));
 }
 
 .data-table-scroll tbody tr[data-highlighted="true"] {

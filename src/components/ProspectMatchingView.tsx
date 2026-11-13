@@ -2,7 +2,16 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Download, Loader2, RefreshCw, Search, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
 
 import { BulkActionBar, BulkResult, BulkToolbar } from "@/components/BulkSelection";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -43,6 +52,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { activeFilterChips, visibleCountText } from "@/lib/filter-chips";
 import { rematchInvoice } from "@/lib/invoices.functions";
 import { toastError } from "@/lib/toast-error";
+import lbnTemplateUrl from "@/assets/lbn-template.xlsx?url";
 import { PROSPECT_MATCHING_LINES_KEY, type Stage } from "@/lib/line-actions";
 import {
   canonicalizeComparatifSearch,
@@ -332,6 +342,41 @@ export function ProspectMatchingView({
     }
   }
 
+  /** Export final au format du fichier « comparatif alimentaire » (modèle, formules, feuilles de recherche). */
+  async function exportFinal(lines: MatchingLine[]) {
+    if (lines.length === 0) {
+      toast.error("Aucune ligne à exporter");
+      return;
+    }
+    try {
+      const [{ buildLbnWorkbook }, { buildLbnInput }, response, data] = await Promise.all([
+        import("@/lib/lbn-export"),
+        import("@/lib/lbn-input"),
+        fetch(lbnTemplateUrl),
+        ozegoDataFor("ozego", lines),
+      ]);
+      if (!response.ok) throw new Error("Modèle d'export introuvable");
+      const workbook = await buildLbnWorkbook(
+        await response.arrayBuffer(),
+        buildLbnInput(lines, data, prospectName || "Comparatif"),
+      );
+      const buffer = await workbook.xlsx.writeBuffer();
+      const name = prospectName.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+      const url = URL.createObjectURL(
+        new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `comparatif-alimentaire-${name || "prospect"}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toastError(error);
+    }
+  }
+
   const processedInvoices = invoices.filter((invoice) => invoice.status === "processed");
 
   async function rematchAll() {
@@ -433,7 +478,7 @@ export function ProspectMatchingView({
       );
     }
     if (tab === "ozego") {
-      const { invoicedTotal, bestTotal } = sumReferencePrices(pageLines, bestByOzego);
+      const { bestTotal } = sumReferencePrices(pageLines, bestByOzego);
       return (
         <OzegoComparisonTable
           {...pageActions("ozego")}
@@ -443,11 +488,9 @@ export function ProspectMatchingView({
           ozegoLoading={ozegoLoading}
           rowFor={(line) => bestRowFor(line, bestByOzego)}
           totals={{ ...sumOzegoGaps(pageLines, bestByOzego, tolerance), bestTotal }}
-          invoicedTotal={invoicedTotal}
         />
       );
     }
-    const { invoicedTotal } = sumReferencePrices(pageLines, bestByOzego);
     return (
       <OzegoComparisonTable
         {...pageActions("ozego-preferes")}
@@ -457,7 +500,6 @@ export function ProspectMatchingView({
         ozegoLoading={ozegoLoading}
         rowFor={(line) => preferredRowFor(line, variantsByOzego, preferredSuppliers)}
         totals={sumPreferredGaps(pageLines, variantsByOzego, preferredSuppliers, tolerance)}
-        invoicedTotal={invoicedTotal}
       />
     );
   }
@@ -591,6 +633,14 @@ export function ProspectMatchingView({
               >
                 <Download className="size-4" />
                 Exporter tout ({allLines.length})
+              </Button>
+              <Button
+                onClick={() => void exportFinal(filtered)}
+                disabled={filtered.length === 0}
+                title="Fichier Excel au format du comparatif alimentaire, avec formules : applique les filtres en cours"
+              >
+                <FileSpreadsheet className="size-4" />
+                Export final ({filtered.length})
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>

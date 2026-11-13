@@ -35,15 +35,15 @@ describe("searchTokens", () => {
 });
 
 describe("tokenFilter", () => {
-  test("référence, libellé sans accent et EAN", () => {
+  test("référence, libellé sans accent, EAN et fournisseur", () => {
     expect(tokenFilter("Échalote")).toBe(
-      "reference.ilike.%Échalote%,label_unaccent.ilike.%Echalote%,ean.ilike.%Échalote%",
+      "reference.ilike.%Échalote%,label_unaccent.ilike.%Echalote%,ean.ilike.%Échalote%,supplier_name.ilike.%Échalote%",
     );
   });
 
   test("un code sans accent est inchangé", () => {
     expect(tokenFilter("31.4.72")).toBe(
-      "reference.ilike.%31.4.72%,label_unaccent.ilike.%31.4.72%,ean.ilike.%31.4.72%",
+      "reference.ilike.%31.4.72%,label_unaccent.ilike.%31.4.72%,ean.ilike.%31.4.72%,supplier_name.ilike.%31.4.72%",
     );
   });
 });

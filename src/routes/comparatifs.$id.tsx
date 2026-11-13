@@ -40,7 +40,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/lib/auth";
 import { processInvoice } from "@/lib/invoices.functions";
 import { deleteInvoiceMessage } from "@/lib/delete-messages";
-import { euro, lineGap, percent, shortDate } from "@/lib/format";
+import { euro, gapPercentLabel, gapTextClass, lineGap, shortDate } from "@/lib/format";
 import { formatPriceColumns, formatPriceRows, rowOf } from "@/lib/xlsx-format";
 import { friendlyError } from "@/lib/errors";
 import { toastError } from "@/lib/toast-error";
@@ -745,7 +745,11 @@ function ProspectComparison() {
             <SummaryCard
               label={analysis.saving >= 0 ? "Économie potentielle" : "Surcoût potentiel"}
               value={euro(Math.abs(analysis.saving))}
-              hint={analysis.savingPercent === null ? undefined : percent(analysis.savingPercent)}
+              hint={
+                analysis.savingPercent === null
+                  ? undefined
+                  : gapPercentLabel(analysis.savingPercent)
+              }
               tone={analysis.saving >= 0 ? "good" : "bad"}
             />
             <SummaryCard
@@ -785,9 +789,7 @@ function ProspectComparison() {
                           {euro(row.catalog)}
                         </td>
                         <td
-                          className={`px-4 py-2 text-right tabular-nums font-medium ${
-                            row.gap > 0 ? "text-destructive" : row.gap < 0 ? "text-success" : ""
-                          }`}
+                          className={`px-4 py-2 text-right tabular-nums font-medium ${gapTextClass(row.gap)}`}
                         >
                           {euro(row.gap)}
                         </td>
@@ -807,18 +809,18 @@ function ProspectComparison() {
                   Sur {analysis.matched} ligne(s) rapprochée(s), {analysis.above} dépassent le tarif
                   catalogue de plus de {tolerance} % et {analysis.below} sont déjà moins chères.
                   {analysis.savingPercent !== null
-                    ? ` Le potentiel global représente ${percent(analysis.savingPercent)} du montant facturé comparé.`
+                    ? ` Le potentiel global représente ${Math.abs(analysis.savingPercent).toFixed(1).replace(".", ",")} % du montant facturé comparé.`
                     : ""}
                 </p>
                 <div>
-                  <p className="mb-2 font-medium">Lignes les plus coûteuses</p>
+                  <p className="mb-2 font-medium">Plus fortes économies possibles</p>
                   <ul className="space-y-1">
                     {analysis.top.map((row) => (
                       <li key={row.id} className="flex justify-between gap-4">
                         <span className="truncate text-muted-foreground">
                           {row.label} · {row.supplier}
                         </span>
-                        <span className="tabular-nums font-medium text-destructive">
+                        <span className={`tabular-nums font-medium ${gapTextClass(row.gap)}`}>
                           {euro(row.gap)}
                         </span>
                       </li>
@@ -826,14 +828,14 @@ function ProspectComparison() {
                   </ul>
                 </div>
                 <div>
-                  <p className="mb-2 font-medium">Lignes déjà compétitives</p>
+                  <p className="mb-2 font-medium">Lignes déjà moins chères que le catalogue</p>
                   <ul className="space-y-1">
                     {analysis.worst.map((row) => (
                       <li key={row.id} className="flex justify-between gap-4">
                         <span className="truncate text-muted-foreground">
                           {row.label} · {row.supplier}
                         </span>
-                        <span className="tabular-nums font-medium text-success">
+                        <span className={`tabular-nums font-medium ${gapTextClass(row.gap)}`}>
                           {euro(row.gap)}
                         </span>
                       </li>
@@ -865,7 +867,7 @@ function ProspectComparison() {
                   hint={
                     ozegoAnalysis.savingPercent === null
                       ? undefined
-                      : `écart ${percent(ozegoAnalysis.savingPercent)}`
+                      : `écart ${gapPercentLabel(ozegoAnalysis.savingPercent)}`
                   }
                   tone={ozegoAnalysis.saving >= 0 ? "good" : "bad"}
                 />

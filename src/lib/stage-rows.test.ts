@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import { lineGap } from "./format";
+import { gapPercentLabel, gapTextClass, gapTone, lineGap } from "./format";
 import type { MatchingLine, MatchingProduct } from "./matching-view";
 import { filterLines, countByStatus, DEFAULT_FILTERS, paginate } from "./matching-view";
 import type { OzegoBest, OzegoVariant } from "./ozego";
@@ -18,6 +18,7 @@ const {
   ozegoIdsOf,
   ozegoLineView,
   ozegoTableLabels,
+  outOfToleranceTone,
   preferredRowFor,
   sumFournisseurGaps,
   sumOzegoGaps,
@@ -109,6 +110,69 @@ describe("isOutOfTolerance", () => {
     expect(isOutOfTolerance({ percentGap: 2 }, 2)).toBe(false);
     expect(isOutOfTolerance({ percentGap: null }, 2)).toBe(false);
     expect(isOutOfTolerance(null, 2)).toBe(false);
+  });
+});
+
+describe("gapPercentLabel : économie en « − », perte en « + »", () => {
+  test("inverse le signe de l'écart brut pour l'affichage", () => {
+    expect(gapPercentLabel(50.1437)).toBe("-50,1 %");
+    expect(gapPercentLabel(-3.2)).toBe("+3,2 %");
+  });
+
+  test("tiret si absent, zéro sans signe", () => {
+    expect(gapPercentLabel(null)).toBe("—");
+    expect(gapPercentLabel(undefined)).toBe("—");
+    expect(gapPercentLabel(0)).toBe("0,0 %");
+  });
+});
+
+describe("gapTone / gapTextClass : vert = économie possible, rouge = perte", () => {
+  test("écart positif (on paie plus que la référence) : économie possible, vert", () => {
+    expect(gapTone(167.48)).toBe("gain");
+    expect(gapTextClass(167.48)).toBe("text-success");
+  });
+
+  test("écart négatif (on paie moins que la référence) : perte, rouge", () => {
+    expect(gapTone(-0.01)).toBe("loss");
+    expect(gapTextClass(-0.01)).toBe("text-destructive");
+  });
+
+  test("écart nul, absent ou non numérique : aucune couleur", () => {
+    for (const value of [0, null, undefined, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(gapTone(value)).toBeNull();
+      expect(gapTextClass(value)).toBe("");
+    }
+  });
+});
+
+describe("outOfToleranceTone : même convention pour les lignes hors tolérance", () => {
+  test("on paie plus que la référence : économie possible, ligne verte", () => {
+    expect(outOfToleranceTone({ unitGap: 4.187, percentGap: 50.14 }, 2)).toBe("gain");
+  });
+
+  test("on paie moins que la référence : perte, ligne rouge", () => {
+    expect(outOfToleranceTone({ unitGap: -0.5, percentGap: -30 }, 2)).toBe("loss");
+  });
+
+  test("dans la tolérance ou sans écart : aucune teinte", () => {
+    expect(outOfToleranceTone({ unitGap: 0.01, percentGap: 1 }, 2)).toBeNull();
+    expect(outOfToleranceTone({ unitGap: -0.01, percentGap: -1 }, 2)).toBeNull();
+    expect(outOfToleranceTone(null, 2)).toBeNull();
+  });
+
+  test("les vues de ligne exposent la teinte : cond. ×6, 2 € contre 1,5 € = économie possible", () => {
+    expect(fournisseurLineView(line("1"), 2).tone).toBe("gain");
+    expect(fournisseurLineView(line("1", { unit_price: 3 }), 2).tone).toBe("loss");
+    expect(fournisseurLineView(line("1", { unit_price: 9.1 }), 2).tone).toBeNull();
+  });
+});
+
+describe("ligne saumon du comparatif : 12,537 € facturé contre 8,350 € au catalogue", () => {
+  test("écart par kg, total sur 40 kg et pourcentage", () => {
+    const gap = lineGap(12.537, 8.35, 40, 1);
+    expect(gap?.unitGap).toBeCloseTo(4.187, 9);
+    expect(gap?.totalGap).toBeCloseTo(167.48, 9);
+    expect(gap?.percentGap).toBeCloseTo(50.1437, 3);
   });
 });
 
@@ -350,10 +414,21 @@ describe("totaux : mêmes nombres que les calculs d'origine de la page facture",
   test("sumOzegoGaps", () => {
     const lines = mixedLines();
     for (const tolerance of [0, 2, 40]) {
-      expect(sumOzegoGaps(lines, bestByOzego, tolerance)).toEqual(
-        legacyOzegoTotals(lines, bestByOzego, tolerance),
-      );
+      const { invoicedTotal: _invoiced, ...totals } = sumOzegoGaps(lines, bestByOzego, tolerance);
+      expect(totals).toEqual(legacyOzegoTotals(lines, bestByOzego, tolerance));
     }
+  });
+
+  test("pied de tableau Ozego : facturé - meilleur prix = écart, sur les mêmes lignes", () => {
+    const lines = mixedLines();
+    const ozego = sumOzegoGaps(lines, bestByOzego, 2);
+    const prices = sumReferencePrices(lines, bestByOzego);
+    expect(ozego.invoicedTotal - prices.bestTotal).toBeCloseTo(ozego.total, 9);
+    // Des lignes ont un prix catalogue mais pas d'offre Ozego : le facturé « catalogue » est plus grand.
+    expect(prices.invoicedTotal > ozego.invoicedTotal).toBe(true);
+
+    const preferred = sumPreferredGaps(lines, variantsByOzego, ["metro"], 2);
+    expect(preferred.invoicedTotal - preferred.bestTotal).toBeCloseTo(preferred.total, 9);
   });
 
   test("sumReferencePrices", () => {
@@ -365,9 +440,13 @@ describe("totaux : mêmes nombres que les calculs d'origine de la page facture",
     const { cheapestAmong } = await import("./ozego");
     const lines = mixedLines();
     for (const preferred of [["metro"], [], ["Inconnu"]]) {
-      expect(sumPreferredGaps(lines, variantsByOzego, preferred, 2)).toEqual(
-        legacyPreferred(lines, variantsByOzego, preferred, 2, cheapestAmong),
+      const { invoicedTotal: _invoiced, ...totals } = sumPreferredGaps(
+        lines,
+        variantsByOzego,
+        preferred,
+        2,
       );
+      expect(totals).toEqual(legacyPreferred(lines, variantsByOzego, preferred, 2, cheapestAmong));
     }
   });
 

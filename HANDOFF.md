@@ -1,4 +1,4 @@
-# Handoff — 2026-11-09 (points client 1 à 7, rien n'est encore commité)
+# Handoff — 2026-11-12 (points client 1 à 7, couleurs des écarts et sélecteur de produit)
 
 Notes pour la personne (ou l'agent) qui reprend le projet. Instantané ponctuel, pas une
 documentation permanente : **CLAUDE.md reste la référence technique** (architecture, pipeline,
@@ -26,6 +26,11 @@ remplacer ou supprimer dès qu'il est périmé.
 Mise à jour 2026-11-09 : le travail se fait sur la branche `develop` (HEAD `252fb3c`) ; `7c991f1`
 est déjà poussé (voir l'incident des marqueurs de conflit plus bas). Les lots UX et Ozego ci-dessous
 sont non commités : se fier à `git status`, pas à ce paragraphe.
+
+Mise à jour 2026-11-12 : `develop` porte 3 commits locaux non poussés (`71b352d` correctif RLS Ozego,
+`72af6e4` recherche par désignation dans le sélecteur, `918330b` prix à 3 décimales et colonne
+Fournisseur) ; `origin/develop` contient encore le commit cassé `7c991f1`. Les sections « Convention
+de couleur des écarts » et « Fournisseur dans le sélecteur » ci-dessous sont **non commitées**.
 
 ## Ce qui a changé dans ce cycle (points client 1 à 7)
 
@@ -100,6 +105,42 @@ lignes (synthèse du comparatif et RPC Ozego compris), invalidation des caches d
   classé par score ; produits actifs seulement, sans famille). Vérifié dans Chrome sur la ligne « EPINARD
   HACHE GALET IQF BIO ST2.5KG X2 » : 0 résultat auparavant, maintenant le produit 77004 en 4e position.
 
+## Fournisseur dans le sélecteur de produit (2026-11-12, non commité)
+
+- Chaque résultat de `ProductPicker` affiche à gauche le **fournisseur du produit du catalogue**
+  (`catalog_products.supplier_name`, 7 rem, tronqué, nom complet en info-bulle).
+- La recherche trouve aussi par fournisseur : `supplier_name` est ajouté au filtre `or` de
+  `tokenFilter` (« sysco saumon » fonctionne, chaque mot pouvant porter sur un champ différent). Le
+  repli `search_catalog` (similarité) ne renvoie ni fournisseur ni famille : le sélecteur les relit par
+  `id` pour les afficher.
+- **Interprétation à confirmer** : « désignation fournisseur » du produit a été comprise comme le nom du
+  fournisseur. Le catalogue n'a pas d'autre champ de ce type que `label` (déjà cherché) ; la désignation
+  de la ligne de facture est déjà proposée en bouton sous le champ.
+- Pas de nouvel index : `reference` n'en a déjà pas, le filtre `or` lit déjà la table entière.
+- Pas exercé dans un navigateur.
+
+## Convention de couleur des écarts (2026-11-12, non commité)
+
+- **Écart = prix facturé − prix de référence.** Positif (on paie plus que la référence, donc économie
+  possible) : **vert**. Négatif (perte) : **rouge**. Nul ou absent : sans couleur. Tout passe par
+  `gapTone`, `gapTextClass` et `gapStatTone` dans `src/lib/format.ts` (inverser la convention = un
+  seul test à changer). Appliquée aux colonnes d'écart, pieds de tableau, cartes de synthèse, fond des
+  lignes hors tolérance (`data-out="gain|loss"`, `src/styles.css`), tableau Général et listes de
+  `comparatifs.$id.tsx` (renommées « Plus fortes économies possibles » et « Lignes déjà moins chères que
+  le catalogue »). Sur une ligne du tableau Général, une perte prime sur une économie pour le fond.
+- **Pourcentage affiché en signe inverse** (`gapPercentLabel`) : économie = « − », perte = « + ». Le
+  pourcentage est calculé par rapport à la **référence** (12,537 € contre 8,350 € : +50,1 % brut, affiché
+  −50,1 %) ; par rapport à la facture ce serait 33,4 %. Affichage seulement : tolérance, anomalies et
+  exports Excel (« Écart % ») gardent le signe brut, donc l'écran et Excel diffèrent.
+- **Totaux de pied cohérents** : « Facturé − Meilleure offre = Écart » sur les mêmes lignes. Sous les
+  colonnes Ozego, le facturé vient de `sumOzegoGaps` / `sumPreferredGaps` (lignes comparées dans
+  l'étape) et non du catalogue (`sumReferencePrices`). Nouvelle cellule « Facturé (lignes comparées) »
+  sur la page facture.
+- Contrôle de calcul sur la ligne saumon : 12,537 vs 8,350, quantité 40 → écart unitaire 4,187, total
+  167,480, +50,14 %. Le produit apparié est en 130-160 g contre 150/350 g facturés : calibre
+  possiblement faux, à vérifier.
+- Non fait : libellé Excel « Lignes déjà compétitives » inchangé ; couleurs non vérifiées dans un navigateur.
+
 ## Performance Ozego (2026-11-09)
 
 - **Migrations** : `20261109100000_fix_ozego_key_rpcs_timeout.sql` (réécriture de
@@ -142,6 +183,29 @@ lignes (synthèse du comparatif et RPC Ozego compris), invalidation des caches d
 - **Timeout et lenteur Ozego** : réglés. `20261109100000`, `20261109110000` et
   `20261110100000` sont appliquées en ligne (appels à clé tronquée : 40 à 95 ms ; voir « Performance
   Ozego »). Reste à vérifier l'écran « Ozego » lui-même avec un compte `commercial`.
+- **Export final au format du fichier LBN (2026-11-12, fait, non commité, jamais ouvert dans Excel)** :
+  bouton « Export final (n) » de la vue projet (`ProspectMatchingView`, applique les filtres en cours).
+  `src/lib/lbn-export.ts` (générateur pur, exceljs chargé à la demande) part du modèle nettoyé
+  `src/assets/lbn-template.xlsx` (styles, logo, fusions, rouge/vert conditionnel du fichier client, SANS
+  donnée client), fabriqué par `bun scripts/build-lbn-template.ts "<fichier client>.xlsx"`.
+  `lbn-input.ts` prépare les données ; `lbn-layout.ts` porte les noms de feuilles (ceux du fichier
+  d'origine, que ses XLOOKUP citent : « 2026,10 OZ al », « Prix le -cher »).
+  - Feuille « Comparatif alimentaire » : récurrence fournisseur (`COUNTIF`), bloc Achats clients
+    (PU `=prix/coef`, Qtés `=qté*coef`, CA), bloc milieu = produit rapproché par référence (XLOOKUP vers
+    « 2026,10 OZ al »), bloc droite = meilleure offre du groupe Ozego (XLOOKUP vers « Prix le -cher »),
+    écarts `(prix Ozego − prix client) / prix client` (négatif = économie, vert), totaux, économie, tableau
+    « produits non référencés ». Valeurs de formules mises en cache, recalcul complet à l'ouverture.
+  - Les deux feuilles de recherche ne contiennent que les produits utilisés (choix de l'utilisateur) ;
+    une référence ou un nom en double les rend ambigus : la cellule est alors écrite en valeur.
+  - Écarts avec le fichier d'origine : la cellule M« total+1 » (7780.21 saisi à la main) est une formule
+    (CA du client sur les lignes qui ont un prix Ozego) ; le bloc de droite compare sur les lignes qui ont
+    une offre ; produit sans prix = « Hors Mercuriale » en rouge ; les 5 feuilles masquées par fournisseur
+    ne sont pas reproduites ; lignes triées par CA décroissant.
+  - Données absentes de l'application : « Désignation fournisseur » de l'offre (remplacée par le nom
+    Ozego, `catalog_products.label`), unité de négo (champ `unit` du catalogue, ignoré s'il est
+    numérique), coefficient du catalogue (remplacé par le coefficient de la ligne de facture).
+  - À faire : ouvrir un export dans Excel (XLOOKUP, styles, logo, mise en forme conditionnelle) ; ne PAS
+    committer le fichier client `2026 10 09 - LBN … .xlsx` (données réelles, dépôt public).
 - **Migrations** : coller `supabase/apply-2026-11-06-all-in-one.sql` dans le SQL Editor de Supabase.
   Ordre : script **avant** le déploiement du code. Son étape 3 (« Même fournisseur ») n'est sûre
   qu'après déploiement, ou si l'ancienne page n'est plus utilisée. Déjà appliqué ? **Non vérifié.**

@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { euro, percent, priceInput } from "@/lib/format";
+import { euro, gapPercentLabel, gapStatTone, gapTextClass, priceInput } from "@/lib/format";
 import type { Stage } from "@/lib/line-actions";
 import { matchMethodNote, rowStatus, STATUS_LABEL, type RowStatus } from "@/lib/matching-view";
 import { HIGHLIGHT_ROW_CLASS } from "@/lib/use-review-navigation";
@@ -27,6 +27,7 @@ import {
   fournisseurLineView,
   ozegoLineView,
   type GapTotals,
+  type OutOfToleranceTone,
   type OzegoOffer,
   type StageLine,
 } from "@/lib/stage-rows";
@@ -64,19 +65,24 @@ type SharedTableProps<L extends StageLine> = {
 
 const LOCKED_TITLE = "Verrouillée : déjà validée à une étape précédente";
 
-function rowClass(out: boolean, busy: boolean, highlighted: boolean) {
+const TONE_CLASS: Record<OutOfToleranceTone, string> = {
+  loss: "bg-destructive/5",
+  gain: "bg-success/5",
+};
+
+function rowClass(tone: OutOfToleranceTone | null, busy: boolean, highlighted: boolean) {
   return (
-    [highlighted ? HIGHLIGHT_ROW_CLASS : out ? "bg-destructive/5" : "", busy ? "opacity-60" : ""]
+    [highlighted ? HIGHLIGHT_ROW_CLASS : tone ? TONE_CLASS[tone] : "", busy ? "opacity-60" : ""]
       .filter(Boolean)
       .join(" ") || undefined
   );
 }
 
 /** Attributs d'une ligne : repère pour « Prochaine ligne à vérifier » et états lus par styles.css. */
-function rowAttributes(id: string, out: boolean, highlighted: boolean) {
+function rowAttributes(id: string, tone: OutOfToleranceTone | null, highlighted: boolean) {
   return {
     "data-line-id": id,
-    "data-out": out ? "true" : undefined,
+    "data-out": tone ?? undefined,
     "data-highlighted": highlighted ? "true" : undefined,
   } as const;
 }
@@ -276,14 +282,16 @@ export function StatCard({
 }: {
   label: string;
   value: string;
-  tone: "good" | "warn" | "bad";
+  tone: "good" | "warn" | "bad" | "neutral";
 }) {
   const toneClass =
     tone === "bad"
       ? "text-destructive"
       : tone === "warn"
         ? "text-warning-foreground"
-        : "text-success";
+        : tone === "neutral"
+          ? ""
+          : "text-success";
   return (
     <Card>
       <CardContent className="pt-6">
@@ -339,7 +347,7 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
           <StatCard
             label="Écart total facturé"
             value={euro(totals.total)}
-            tone={totals.total > 0 ? "bad" : "good"}
+            tone={gapStatTone(totals.total)}
           />
           <StatCard
             label="Lignes hors tolérance"
@@ -404,15 +412,15 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
               <TableSkeletonRows columns={10 + lead} selectable={Boolean(selection)} />
             ) : null}
             {lines.map((line) => {
-              const { catalogPrice, gap, out, canConfirm } = fournisseurLineView(line, tolerance);
+              const { catalogPrice, gap, tone, canConfirm } = fournisseurLineView(line, tolerance);
               const busy = isBusy?.(line) ?? false;
               const highlighted = highlightedId === line.id;
               const status = rowStatus(line);
               return (
                 <tr
                   key={line.id}
-                  {...rowAttributes(line.id, out, highlighted)}
-                  className={rowClass(out, busy, highlighted)}
+                  {...rowAttributes(line.id, tone, highlighted)}
+                  className={rowClass(tone, busy, highlighted)}
                 >
                   {selection ? (
                     <SelectCell line={line} selection={selection} status={status} />
@@ -534,19 +542,13 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
                   </td>
                   <td
                     className={`px-4 py-3 text-right tabular-nums font-medium ${
-                      !gap
-                        ? "text-muted-foreground"
-                        : gap.unitGap > 0
-                          ? "text-destructive"
-                          : gap.unitGap < 0
-                            ? "text-success"
-                            : ""
+                      gap ? gapTextClass(gap.unitGap) : "text-muted-foreground"
                     }`}
                   >
                     {gap ? (
                       <>
                         <span className="block">{euro(gap.totalGap)}</span>
-                        <span className="block text-xs">{percent(gap.percentGap)}</span>
+                        <span className="block text-xs">{gapPercentLabel(gap.percentGap)}</span>
                       </>
                     ) : (
                       "—"
@@ -611,9 +613,7 @@ export function FournisseurComparisonTable<L extends StageLine & { label: string
               <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                 {euro(catalogTotal)}
               </td>
-              <td
-                className={`px-4 py-3 text-right tabular-nums ${totals.total > 0 ? "text-destructive" : totals.total < 0 ? "text-success" : ""}`}
-              >
+              <td className={`px-4 py-3 text-right tabular-nums ${gapTextClass(totals.total)}`}>
                 {euro(totals.total)}
               </td>
               <td data-sticky="right" className="px-4 py-3" />
@@ -643,7 +643,6 @@ export function OzegoComparisonTable<L extends StageLine>({
   statLabel,
   rowFor,
   totals,
-  invoicedTotal,
   tolerance,
   onSaveLineField,
   onSavePackFactor,
@@ -666,8 +665,8 @@ export function OzegoComparisonTable<L extends StageLine>({
   unmatchedLabel: string;
   statLabel: string;
   rowFor: (line: L) => OzegoOffer | undefined;
-  totals: GapTotals & { bestTotal: number };
-  invoicedTotal: number;
+  /** `invoicedTotal` et `bestTotal` portent sur les mêmes lignes comparées que `total`. */
+  totals: GapTotals & { bestTotal: number; invoicedTotal: number };
   /** Prix Ozego en cours de chargement : cellules squelettes à la place des prix absents. */
   ozegoLoading?: boolean;
 }) {
@@ -676,11 +675,7 @@ export function OzegoComparisonTable<L extends StageLine>({
     <>
       {showStats ? (
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
-          <StatCard
-            label={statLabel}
-            value={euro(totals.total)}
-            tone={totals.total > 0 ? "bad" : "good"}
-          />
+          <StatCard label={statLabel} value={euro(totals.total)} tone={gapStatTone(totals.total)} />
           <StatCard
             label="Lignes hors tolérance"
             value={String(totals.anomalies)}
@@ -734,7 +729,7 @@ export function OzegoComparisonTable<L extends StageLine>({
             {isLoading ? <TableSkeletonRows columns={11 + lead} /> : null}
             {lines.map((line) => {
               const row = rowFor(line);
-              const { ozegoId, gap, out, locked } = ozegoLineView(line, row, tolerance, stage);
+              const { ozegoId, gap, tone, locked } = ozegoLineView(line, row, tolerance, stage);
               const busy = isBusy?.(line) ?? false;
               const highlighted = highlightedId === line.id;
               const status = rowStatus(line);
@@ -742,8 +737,8 @@ export function OzegoComparisonTable<L extends StageLine>({
               return (
                 <tr
                   key={line.id}
-                  {...rowAttributes(line.id, out, highlighted)}
-                  className={rowClass(out, busy, highlighted)}
+                  {...rowAttributes(line.id, tone, highlighted)}
+                  className={rowClass(tone, busy, highlighted)}
                 >
                   {supplierName ? <SupplierCell name={supplierName(line)} edge={status} /> : null}
                   {invoiceCell ? (
@@ -864,13 +859,7 @@ export function OzegoComparisonTable<L extends StageLine>({
                   </td>
                   <td
                     className={`px-4 py-3 text-right font-medium tabular-nums ${
-                      !gap
-                        ? "text-muted-foreground"
-                        : gap.unitGap > 0
-                          ? "text-destructive"
-                          : gap.unitGap < 0
-                            ? "text-success"
-                            : ""
+                      gap ? gapTextClass(gap.unitGap) : "text-muted-foreground"
                     }`}
                   >
                     {pending ? (
@@ -878,7 +867,7 @@ export function OzegoComparisonTable<L extends StageLine>({
                     ) : gap ? (
                       <>
                         <span className="block">{euro(gap.totalGap)}</span>
-                        <span className="block text-xs">{percent(gap.percentGap)}</span>
+                        <span className="block text-xs">{gapPercentLabel(gap.percentGap)}</span>
                       </>
                     ) : (
                       "—"
@@ -926,15 +915,15 @@ export function OzegoComparisonTable<L extends StageLine>({
               <td className="px-4 py-3" colSpan={5 + lead}>
                 {totalLabel}
               </td>
-              <td className="px-4 py-3 text-right tabular-nums">{euro(invoicedTotal)}</td>
+              <td className="px-4 py-3 text-right tabular-nums">
+                {ozegoLoading ? <CellSkeleton /> : euro(totals.invoicedTotal)}
+              </td>
               <td className="px-4 py-3" />
               <td className="px-4 py-3" />
               <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                 {ozegoLoading ? <CellSkeleton /> : euro(totals.bestTotal)}
               </td>
-              <td
-                className={`px-4 py-3 text-right tabular-nums ${totals.total > 0 ? "text-destructive" : totals.total < 0 ? "text-success" : ""}`}
-              >
+              <td className={`px-4 py-3 text-right tabular-nums ${gapTextClass(totals.total)}`}>
                 {ozegoLoading ? <CellSkeleton /> : euro(totals.total)}
               </td>
               <td data-sticky="right" className="px-4 py-3" />

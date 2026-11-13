@@ -32,7 +32,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { rematchInvoice } from "@/lib/invoices.functions";
-import { euro, lineGap, num, percent, shortDate } from "@/lib/format";
+import {
+  euro,
+  gapPercentLabel,
+  gapStatTone,
+  gapTextClass,
+  lineGap,
+  num,
+  percent,
+  shortDate,
+} from "@/lib/format";
 import { formatPriceColumns, formatPriceRows } from "@/lib/xlsx-format";
 import { toastError } from "@/lib/toast-error";
 import { type Stage } from "@/lib/line-actions";
@@ -53,6 +62,7 @@ import {
   bestRowFor,
   ozegoIdsOf,
   ozegoTableLabels,
+  outOfToleranceTone,
   preferredRowFor as preferredRowOf,
   sumFournisseurGaps,
   sumOzegoGaps,
@@ -780,12 +790,12 @@ function InvoiceDetail() {
                   <StatCard
                     label="Écart réf. fournisseur"
                     value={euro(totals.total)}
-                    tone={totals.total > 0 ? "bad" : "good"}
+                    tone={gapStatTone(totals.total)}
                   />
                   <StatCard
                     label="Écart identifiant Ozego"
                     value={euro(ozegoTotals.total)}
-                    tone={ozegoTotals.total > 0 ? "bad" : "good"}
+                    tone={gapStatTone(ozegoTotals.total)}
                   />
                   <StatCard
                     label="Lignes rapprochées"
@@ -841,9 +851,11 @@ function InvoiceDetail() {
                         const ozegoId = line.catalog_products?.ozego_id ?? null;
                         const best = ozegoId ? bestByOzego.get(ozegoId) : undefined;
                         const oz = ozegoGap(line, best);
-                        const out =
-                          (sup && Math.abs(sup.percentGap ?? 0) > tolerance) ||
-                          (oz && Math.abs(oz.percentGap ?? 0) > tolerance);
+                        // Une perte (on paie plus que la référence) prime sur un gain : la ligne reste rouge.
+                        const supTone = outOfToleranceTone(sup, tolerance);
+                        const ozTone = outOfToleranceTone(oz, tolerance);
+                        const tone =
+                          supTone === "loss" || ozTone === "loss" ? "loss" : (supTone ?? ozTone);
                         return (
                           <tr
                             key={line.id}
@@ -851,9 +863,11 @@ function InvoiceDetail() {
                             className={
                               highlightedId === line.id
                                 ? HIGHLIGHT_ROW_CLASS
-                                : out
+                                : tone === "loss"
                                   ? "bg-destructive/5"
-                                  : undefined
+                                  : tone === "gain"
+                                    ? "bg-success/5"
+                                    : undefined
                             }
                           >
                             <SupplierCell name={invoice?.supplier_name} />
@@ -904,19 +918,15 @@ function InvoiceDetail() {
                             </td>
                             <td
                               className={`px-4 py-3 text-right font-medium tabular-nums ${
-                                !sup
-                                  ? "text-muted-foreground"
-                                  : sup.unitGap > 0
-                                    ? "text-destructive"
-                                    : sup.unitGap < 0
-                                      ? "text-success"
-                                      : ""
+                                sup ? gapTextClass(sup.unitGap) : "text-muted-foreground"
                               }`}
                             >
                               {sup ? (
                                 <>
                                   <span className="block">{euro(sup.totalGap)}</span>
-                                  <span className="block text-xs">{percent(sup.percentGap)}</span>
+                                  <span className="block text-xs">
+                                    {gapPercentLabel(sup.percentGap)}
+                                  </span>
                                 </>
                               ) : (
                                 "—"
@@ -941,19 +951,15 @@ function InvoiceDetail() {
                             </td>
                             <td
                               className={`px-4 py-3 text-right font-medium tabular-nums ${
-                                !oz
-                                  ? "text-muted-foreground"
-                                  : oz.unitGap > 0
-                                    ? "text-destructive"
-                                    : oz.unitGap < 0
-                                      ? "text-success"
-                                      : ""
+                                oz ? gapTextClass(oz.unitGap) : "text-muted-foreground"
                               }`}
                             >
                               {oz ? (
                                 <>
                                   <span className="block">{euro(oz.totalGap)}</span>
-                                  <span className="block text-xs">{percent(oz.percentGap)}</span>
+                                  <span className="block text-xs">
+                                    {gapPercentLabel(oz.percentGap)}
+                                  </span>
                                 </>
                               ) : (
                                 "—"
@@ -973,16 +979,21 @@ function InvoiceDetail() {
                           {euro(catalogTotal)}
                         </td>
                         <td
-                          className={`px-4 py-3 text-right tabular-nums ${totals.total > 0 ? "text-destructive" : totals.total < 0 ? "text-success" : ""}`}
+                          className={`px-4 py-3 text-right tabular-nums ${gapTextClass(totals.total)}`}
                         >
                           {euro(totals.total)}
                         </td>
-                        <td className="px-4 py-3" />
+                        <td
+                          className="px-4 py-3 text-xs text-muted-foreground"
+                          title="Total facturé des lignes qui ont une offre Ozego : base du total « Meilleur PU » et de l'écart Ozego"
+                        >
+                          Facturé (lignes comparées) : {euro(ozegoTotals.invoicedTotal)}
+                        </td>
                         <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                           {euro(bestTotal)}
                         </td>
                         <td
-                          className={`px-4 py-3 text-right tabular-nums ${ozegoTotals.total > 0 ? "text-destructive" : ozegoTotals.total < 0 ? "text-success" : ""}`}
+                          className={`px-4 py-3 text-right tabular-nums ${gapTextClass(ozegoTotals.total)}`}
                         >
                           {euro(ozegoTotals.total)}
                         </td>
@@ -1077,7 +1088,6 @@ function InvoiceDetail() {
                 {...ozegoTableLabels("ozego", preferredSuppliers.length)}
                 rowFor={(line) => bestRowFor(line, bestByOzego)}
                 totals={{ ...ozegoTotals, bestTotal }}
-                invoicedTotal={invoicedTotal}
                 tolerance={tolerance}
                 supplierName={invoiceSupplier}
                 onSaveLineField={(line, patch) => void saveLineField(line, patch)}
@@ -1097,7 +1107,6 @@ function InvoiceDetail() {
                 {...ozegoTableLabels("ozego-preferes", preferredSuppliers.length)}
                 rowFor={preferredRowFor}
                 totals={preferredTotals}
-                invoicedTotal={invoicedTotal}
                 tolerance={tolerance}
                 supplierName={invoiceSupplier}
                 onSaveLineField={(line, patch) => void saveLineField(line, patch)}

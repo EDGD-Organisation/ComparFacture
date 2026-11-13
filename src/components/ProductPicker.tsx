@@ -17,7 +17,7 @@ import { PICKER_LIMIT, searchTokens, tokenFilter } from "@/lib/picker-search";
 
 export type PickedProduct = { id: string; reference: string; label: string; price: number | null };
 
-type PickerRow = PickedProduct & { family: string | null };
+type PickerRow = PickedProduct & { family: string | null; supplier_name: string | null };
 
 export function ProductPicker({
   open,
@@ -50,7 +50,7 @@ export function ProductPicker({
       const tokens = searchTokens(search);
       let query = supabase
         .from("catalog_products")
-        .select("id, reference, label, price, unit, family")
+        .select("id, reference, label, price, unit, family, supplier_name")
         .limit(PICKER_LIMIT);
       for (const token of tokens) query = query.or(tokenFilter(token));
       const { data, error } = await query;
@@ -63,12 +63,21 @@ export function ProductPicker({
         max_results: PICKER_LIMIT,
       });
       if (similar.error) throw new Error(similar.error.message);
+      // La RPC ne renvoie ni fournisseur ni famille : on les relit pour les afficher.
+      const ids = similar.data.map((product) => product.id);
+      const details = await supabase
+        .from("catalog_products")
+        .select("id, family, supplier_name")
+        .in("id", ids);
+      if (details.error) throw new Error(details.error.message);
+      const detailById = new Map(details.data.map((detail) => [detail.id, detail]));
       return similar.data.map((product) => ({
         id: product.id,
         reference: product.reference,
         label: product.label,
         price: product.price ?? null,
-        family: null,
+        family: detailById.get(product.id)?.family ?? null,
+        supplier_name: detailById.get(product.id)?.supplier_name ?? null,
       }));
     },
   });
@@ -87,7 +96,7 @@ export function ProductPicker({
           <Input
             autoFocus
             className="pl-9"
-            placeholder="Référence, désignation, libellé ou EAN…"
+            placeholder="Référence, désignation, fournisseur ou EAN…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -127,7 +136,13 @@ export function ProductPicker({
               }}
               className="flex w-full items-center justify-between gap-4 rounded-md border border-transparent px-3 py-2 text-left transition-colors hover:border-border hover:bg-accent/40"
             >
-              <span className="min-w-0">
+              <span
+                className="w-28 shrink-0 truncate text-xs text-muted-foreground"
+                title={product.supplier_name ?? undefined}
+              >
+                {product.supplier_name ?? "—"}
+              </span>
+              <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{product.label}</span>
                 <span className="block font-mono text-xs text-muted-foreground">
                   {product.reference}
