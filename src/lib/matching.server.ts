@@ -1,5 +1,5 @@
 import { embedTexts } from "./embeddings.server";
-import { derivePackFactor, normalizePackFactor } from "./pack";
+import { DEFAULT_PACK_FACTOR, normalizePackFactor } from "./pack";
 import { serverSupabase } from "./db.server";
 import { fetchAllRows } from "./paginate";
 import { resolveByReference, type RefCandidate } from "./supplier-match";
@@ -125,8 +125,11 @@ export async function matchLines(
   const pending: number[] = [];
 
   lines.forEach((line, index) => {
-    const derived = derivePackFactor(line.label, line.unit ?? null);
-    results[index]!.pack_factor = derived;
+    // Conditionnement : toujours 1 à l'import (le client le saisit à la main sur chaque ligne). Plus
+    // aucune déduction depuis le libellé (« x6 », « carton de 12 »...) : elle imposait des valeurs
+    // que personne n'avait saisies. Seule une correspondance mémorisée (ci-dessous) rapporte la
+    // valeur déjà saisie pour ce produit.
+    results[index]!.pack_factor = DEFAULT_PACK_FACTOR;
 
     // Lignes de service : jamais rapprochées
     if (isNonProductLine(line.label)) return;
@@ -160,7 +163,7 @@ export async function matchLines(
           match_score: 1,
           match_method: "reference",
           match_status: "confirmed",
-          pack_factor: derived,
+          pack_factor: DEFAULT_PACK_FACTOR,
         };
         return;
       }

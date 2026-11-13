@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { lineGap } from "./format";
-import { comparableUnitPrice, derivePackFactor, normalizePackFactor } from "./pack";
+import { comparableUnitPrice, normalizePackFactor } from "./pack";
 
 describe("normalizePackFactor", () => {
   test("retombe sur 1 pour une valeur absente", () => {
@@ -56,22 +56,5 @@ describe("calculs de prix avec un coefficient invalide", () => {
     expect(gap?.packFactor).toBe(6);
     expect(gap?.comparablePrice).toBe(2);
     expect(gap?.totalGap).toBe(12);
-  });
-});
-
-describe("derivePackFactor", () => {
-  test("renvoie 1 pour un libellé sans conditionnement", () => {
-    expect(derivePackFactor("Tomate grappe", null)).toBe(1);
-  });
-
-  test("renvoie 1 quand libellé et unité sont absents", () => {
-    expect(derivePackFactor(null, null)).toBe(1);
-  });
-
-  test("déduit un coefficient depuis le libellé (comportement actuel)", () => {
-    expect(derivePackFactor("Yaourt nature carton de 12", null)).toBe(12);
-    expect(derivePackFactor("Beurre doux 75gx48q", null)).toBe(48);
-    expect(derivePackFactor("Eau minérale x6", null)).toBe(6);
-    expect(derivePackFactor("Gants 100 pièces", null)).toBe(100);
   });
 });

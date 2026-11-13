@@ -162,8 +162,10 @@ the user's Supabase bearer token.
    `POSTGREST_MAX_ROWS` together with it. It propagates Supabase errors; never write a local copy.
 3. Manual correction in the invoice detail route (`src/routes/factures.$id.tsx`) writes back to
    `product_mappings`, which is what makes subsequent invoices from the same supplier auto-match.
-4. "Pack factor" (`src/lib/pack.ts`, `derivePackFactor`) normalizes invoice quantities/prices sold
-   in cartons/packs down to a comparable per-unit price before computing gaps
+4. "Pack factor" (`src/lib/pack.ts`, `normalizePackFactor`) normalizes invoice quantities/prices sold
+   in cartons/packs down to a comparable per-unit price before computing gaps. It is always 1 at
+   import (never derived from the label) and is typed by hand per line; only a learned product
+   mapping restores a previously typed value
    (`src/lib/format.ts#lineGap`, `src/lib/ozego.ts#ozegoGap`).
 
 `scripts/multimodal-test.ts` (`bun run multimodal:test <files...> --out results.json`) exercises

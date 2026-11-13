@@ -206,6 +206,15 @@ lignes (synthèse du comparatif et RPC Ozego compris), invalidation des caches d
     numérique), coefficient du catalogue (remplacé par le coefficient de la ligne de facture).
   - À faire : ouvrir un export dans Excel (XLOOKUP, styles, logo, mise en forme conditionnelle) ; ne PAS
     committer le fichier client `2026 10 09 - LBN … .xlsx` (données réelles, dépôt public).
+- **Conditionnement toujours à 1 à l'import (2026-11-13, non commité)** : `matchLines` déduisait le
+  coefficient du libellé (« x6 », « carton de 12 », « 2 pièces »...) et l'enregistrait ; la fonction
+  `derivePackFactor` est supprimée, le coefficient vaut 1 sauf correspondance mémorisée
+  (`product_mappings.pack_factor`). Les lignes déjà enregistrées gardent leur ancienne valeur déduite
+  jusqu'à « Re-rapprocher toutes les factures » (qui épargne les lignes `manual_override`). Effets à
+  surveiller : une ligne en carton comparée à un prix unitaire donne un faux écart tant que le
+  coefficient n'est pas saisi, et le score de rapprochement par libellé compare le prix brut (plus le
+  prix ramené à l'unité). Saisir un coefficient ne pose pas `manual_override` : un re-rapprochement le
+  remet à 1 si la ligne n'est pas rapprochée par une correspondance mémorisée.
 - **Migrations** : coller `supabase/apply-2026-11-06-all-in-one.sql` dans le SQL Editor de Supabase.
   Ordre : script **avant** le déploiement du code. Son étape 3 (« Même fournisseur ») n'est sûre
   qu'après déploiement, ou si l'ancienne page n'est plus utilisée. Déjà appliqué ? **Non vérifié.**
